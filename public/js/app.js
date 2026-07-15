@@ -7,6 +7,8 @@ let calendarMonth = new Date().getMonth();
 let calendarYear = new Date().getFullYear();
 let weeklyRoutines = [];
 let allRoutinesWithGifs = [];
+let currentPage = 'overview';
+let pollingIntervals = {};
 
 // ===== Theme =====
 function initTheme() {
@@ -125,6 +127,8 @@ function loadingHtml() {
 }
 
 function navigateTo(page) {
+  currentPage = page;
+  clearPolling();
   document.querySelectorAll('.page-section').forEach((s) => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach((n) => n.classList.remove('active'));
   document.querySelectorAll('.bottom-nav-item').forEach((n) => n.classList.remove('active'));
@@ -134,14 +138,24 @@ function navigateTo(page) {
   const bottomItem = document.querySelector(`.bottom-nav-item[data-page="${page}"]`);
   if (bottomItem) bottomItem.classList.add('active');
   window.scrollTo(0, 0);
-  if (page === 'overview') loadOverview();
+  if (page === 'overview') { loadOverview(); startPolling('overview', () => loadOverview(), 30000); }
   if (page === 'ai-coach') loadAICoach();
   if (page === 'routines') loadRoutines();
   if (page === 'exercises') loadExercises();
-  if (page === 'nutrition') loadMacros();
+  if (page === 'nutrition') { loadMacros(); startPolling('nutrition', () => loadMacros(), 30000); }
   if (page === 'supplements') loadSupplements();
   if (page === 'teams') loadTeams();
   if (page === 'profile') loadProfile();
+}
+
+function clearPolling() {
+  Object.values(pollingIntervals).forEach((id) => clearInterval(id));
+  pollingIntervals = {};
+}
+
+function startPolling(name, fn, intervalMs) {
+  if (pollingIntervals[name]) clearInterval(pollingIntervals[name]);
+  pollingIntervals[name] = setInterval(fn, intervalMs);
 }
 
 // ===== AI Status =====
@@ -203,7 +217,8 @@ async function toggleExercise(routineId, exerciseId, event) {
     } else {
       completedExercises.push(exerciseId);
     }
-    loadRoutines();
+    if (currentPage === 'routines') renderRoutinesList();
+    if (currentPage === 'overview') loadOverview();
   } catch (err) { alert(err.message); }
 }
 
@@ -949,11 +964,25 @@ async function openTeamDetail(teamId) {
   detail.style.display = 'block';
   detail.innerHTML = loadingHtml();
 
+  await refreshTeamDetail(teamId);
+
+  startPolling('teamDetail', () => refreshTeamDetail(teamId, true), 5000);
+}
+
+async function refreshTeamDetail(teamId, isPolling) {
   try {
     const data = await apiCall(`/teams/${teamId}`);
     const { team, role } = data;
     const goalLabels = { BULK: 'Volumen', CUT: 'Definicion', MAINTENANCE: 'Mantener' };
     const btLabels = { ECTOMORPH: 'Ectomorfo', MESOMORPH: 'Mesomorfo', ENDOMORPH: 'Endomorfo' };
+    const detail = document.getElementById('team-detail-view');
+    if (!detail) return;
+
+    let feedInputValue = '';
+    if (isPolling) {
+      const input = document.getElementById('feed-post-input');
+      if (input) feedInputValue = input.value;
+    }
 
     detail.innerHTML = `
       <div class="page-header">
@@ -1032,12 +1061,17 @@ async function openTeamDetail(teamId) {
         </div>
       </div>
     `;
+    if (feedInputValue) {
+      const input = document.getElementById('feed-post-input');
+      if (input) input.value = feedInputValue;
+    }
   } catch (err) {
     detail.innerHTML = `<div class="auth-error show">${err.message}</div>`;
   }
 }
 
 function backToTeamsList() {
+  clearPolling();
   document.getElementById('teams-list-view').style.display = 'block';
   document.getElementById('team-detail-view').style.display = 'none';
   currentTeamId = null;
@@ -1072,7 +1106,6 @@ async function shareRoutine(e) {
   try {
     await apiCall(`/teams/${currentTeamId}/share-routine`, 'POST', { routine_id: routineId });
     closeModal();
-    openTeamDetail(currentTeamId);
   } catch (err) { alert(err.message); }
 }
 
@@ -1090,7 +1123,7 @@ async function postToFeed(e) {
   if (!content) return;
   try {
     await apiCall(`/teams/${currentTeamId}/posts`, 'POST', { content });
-    openTeamDetail(currentTeamId);
+    document.getElementById('feed-post-input').value = '';
   } catch (err) { alert(err.message); }
 }
 
