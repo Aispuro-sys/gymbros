@@ -35,13 +35,22 @@ initTheme();
 async function apiCall(endpoint, method = 'GET', body = null) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${API}${endpoint}`, {
-    method, headers,
-    body: body ? JSON.stringify(body) : null,
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
-  return data;
+  try {
+    const res = await fetch(`${API}${endpoint}`, {
+      method, headers,
+      body: body ? JSON.stringify(body) : null,
+    });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { error: text || 'Request failed' }; }
+    if (!res.ok) throw new Error(data.error || `Error ${res.status}: ${text.substring(0, 100)}`);
+    return data;
+  } catch (err) {
+    if (err.message === 'Failed to fetch' || err.message.includes('NetworkError')) {
+      throw new Error('No se pudo conectar al servidor. Verifica tu conexión.');
+    }
+    throw err;
+  }
 }
 
 // ===== Auth =====

@@ -14,8 +14,9 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Username, email and password are required' });
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
     const existing = await prisma.user.findFirst({
-      where: { OR: [{ email }, { username }] },
+      where: { OR: [{ email: normalizedEmail }, { username }] },
     });
     if (existing) {
       return res.status(409).json({ error: 'User with that email or username already exists' });
@@ -25,7 +26,7 @@ router.post('/register', async (req, res) => {
     const user = await prisma.user.create({
       data: {
         username,
-        email,
+        email: normalizedEmail,
         password: hashed,
         age: age || null,
         height_cm: height_cm || null,
@@ -69,13 +70,16 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user) {
+      console.log('Login failed: user not found for email:', normalizedEmail);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
+      console.log('Login failed: password mismatch for user:', user.email);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
