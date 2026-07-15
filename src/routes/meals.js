@@ -37,6 +37,39 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Helper: recalculate daily macros log from all meals of the day
+async function syncDailyMacros(userId, targetDate) {
+  const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setDate(endOfDay.getDate() + 1);
+
+  const meals = await prisma.meal.findMany({
+    where: { user_id: userId, date: { gte: startOfDay, lt: endOfDay } },
+  });
+
+  const totals = meals.reduce((acc, m) => ({
+    calories: acc.calories + m.calories,
+    protein_g: acc.protein_g + m.protein_g,
+    carbs_g: acc.carbs_g + m.carbs_g,
+    fats_g: acc.fats_g + m.fats_g,
+  }), { calories: 0, protein_g: 0, carbs_g: 0, fats_g: 0 });
+
+  const existing = await prisma.macrosDailyLog.findFirst({
+    where: { user_id: userId, date: { gte: startOfDay, lt: endOfDay } },
+  });
+
+  if (existing) {
+    await prisma.macrosDailyLog.update({
+      where: { id: existing.id },
+      data: totals,
+    });
+  } else {
+    await prisma.macrosDailyLog.create({
+      data: { user_id: userId, date: startOfDay, ...totals },
+    });
+  }
+}
+
 // Create a meal
 router.post('/', async (req, res) => {
   try {
@@ -56,6 +89,9 @@ router.post('/', async (req, res) => {
         confirmed: !!photo_url,
       },
     });
+
+    await syncDailyMacros(req.userId, new Date());
+
     res.status(201).json({ meal });
   } catch (err) {
     console.error('Create meal error:', err);
@@ -93,6 +129,7 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Meal not found' });
     }
     await prisma.meal.delete({ where: { id: meal.id } });
+    await syncDailyMacros(req.userId, new Date(meal.date));
     res.json({ message: 'Meal deleted' });
   } catch (err) {
     console.error('Delete meal error:', err);

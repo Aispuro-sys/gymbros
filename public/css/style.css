@@ -2029,6 +2029,20 @@ select.form-input option {
   gap: 1rem;
 }
 
+.recipe-ai-banner {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  color: var(--text-2);
+  margin-bottom: 0.5rem;
+}
+
 .recipe-card {
   background: var(--surface);
   border: 1px solid var(--border);

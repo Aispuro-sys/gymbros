@@ -255,4 +255,66 @@ router.post('/analyze-supplement', async (req, res) => {
   }
 });
 
+// Recommend recipes based on user goal and meal type
+router.post('/recommend-recipes', async (req, res) => {
+  try {
+    const { meal_type, max_calories } = req.body;
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+
+    const goal = user.goal || 'MAINTENANCE';
+    const where = {};
+
+    if (meal_type) where.meal_type = meal_type;
+
+    // Filter by goal
+    if (goal === 'CUTTING') {
+      where.calories = { lte: max_calories || 400 };
+      where.protein_g = { gte: 25 };
+    } else if (goal === 'BULKING') {
+      where.calories = { gte: 400 };
+    }
+
+    let recipes = await prisma.recipe.findMany({
+      where,
+      orderBy: { protein_g: 'desc' },
+      take: 10,
+    });
+
+    // If too few results, relax filters
+    if (recipes.length < 5) {
+      recipes = await prisma.recipe.findMany({
+        orderBy: { protein_g: 'desc' },
+        take: 10,
+      });
+    }
+
+    // Score recipes by goal alignment
+    const scored = recipes.map((r) => {
+      let score = 0;
+      if (goal === 'CUTTING') {
+        score += r.protein_g * 2;
+        score -= r.calories * 0.1;
+        score -= r.fats_g * 0.5;
+      } else if (goal === 'BULKING') {
+        score += r.calories * 0.1;
+        score += r.protein_g;
+        score += r.carbs_g * 0.5;
+      } else {
+        score += r.protein_g;
+      }
+      if (r.diet_tags && r.diet_tags.includes('high-protein')) score += 10;
+      return { ...r, score };
+    }).sort((a, b) => b.score - a.score);
+
+    res.json({
+      recipes: scored.slice(0, 8),
+      goal,
+      ai_powered: hasOpenAI(),
+    });
+  } catch (err) {
+    console.error('AI recipe recommendation error:', err);
+    res.status(500).json({ error: 'Failed to recommend recipes' });
+  }
+});
+
 module.exports = router;

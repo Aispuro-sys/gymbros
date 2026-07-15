@@ -415,6 +415,7 @@ async function selectAIMeal(idx) {
     card.classList.add('meal-selected');
     card.querySelector('.meal-select-hint').textContent = '✓ Agregada a tu día';
     loadMacros();
+    if (currentPage === 'overview') loadOverview();
   } catch (err) { alert(err.message); }
 }
 
@@ -834,6 +835,7 @@ async function confirmMealPhoto(mealId) {
       try {
         await apiCall(`/meals/${mealId}/confirm`, 'PUT', { photo_url: ev.target.result });
         loadMacros();
+        if (currentPage === 'overview') loadOverview();
       } catch (err) { alert(err.message); }
     };
     reader.readAsDataURL(file);
@@ -846,6 +848,7 @@ async function deleteMeal(id) {
   try {
     await apiCall(`/meals/${id}`, 'DELETE');
     loadMacros();
+    if (currentPage === 'overview') loadOverview();
   } catch (err) { alert(err.message); }
 }
 
@@ -1544,8 +1547,44 @@ async function addRecipeToMeals(recipeId) {
       fats_g: r.fats_g,
     });
     closeModal();
+    if (currentPage === 'nutrition') loadMacros();
+    if (currentPage === 'overview') loadOverview();
     alert('Receta agregada a comidas de hoy');
   } catch (err) { alert(err.message); }
+}
+
+async function recommendRecipes() {
+  const grid = document.getElementById('recipes-grid');
+  if (!grid) return;
+  grid.innerHTML = loadingHtml();
+  try {
+    const mealType = document.getElementById('recipe-meal-filter')?.value || '';
+    const data = await apiCall('/ai/recommend-recipes', 'POST', {
+      meal_type: mealType && mealType !== 'ANY' ? mealType : undefined,
+    });
+    if (!data.recipes || data.recipes.length === 0) {
+      grid.innerHTML = emptyState('No hay recetas para tu objetivo aún');
+      return;
+    }
+    const goalLabel = data.goal === 'BULKING' ? 'Volumen' : data.goal === 'CUTTING' ? 'Definición' : 'Mantenimiento';
+    grid.innerHTML = `
+      <div class="recipe-ai-banner">
+        <span class="badge-ai list-item-badge">IA</span>
+        Recomendadas para tu objetivo: <strong>${goalLabel}</strong>
+      </div>
+    ` + data.recipes.map((r) => `
+      <div class="recipe-card" onclick="viewRecipe('${r.id}')">
+        ${r.image_url ? `<img class="recipe-img" src="${r.image_url}" alt="${r.name}" loading="lazy" />` : '<div class="recipe-img-placeholder">🥗</div>'}
+        <div class="recipe-info">
+          <div class="recipe-name">${r.name}</div>
+          <div class="recipe-meta">${r.calories} cal · ${r.protein_g}g prot · ${r.prep_time_min}min</div>
+          <div class="recipe-tags">${(r.diet_tags || []).map((t) => `<span class="recipe-tag">${t}</span>`).join('')}</div>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    grid.innerHTML = `<div class="empty-state"><div class="empty-state-text">${err.message}</div></div>`;
+  }
 }
 
 function openRecipeModal() {
