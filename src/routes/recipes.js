@@ -97,11 +97,14 @@ router.post('/shopping-list', async (req, res) => {
     });
 
     const ingredientMap = {};
+    const recipeList = [];
+
     recipes.forEach((r) => {
+      recipeList.push({ id: r.id, name: r.name, image_url: r.image_url ? r.image_url.replace(/^http:/, 'https:') : null, calories: r.calories, protein_g: r.protein_g });
       (r.ingredients || []).forEach((ing) => {
         const key = ing.trim().toLowerCase();
         if (!ingredientMap[key]) {
-          ingredientMap[key] = { name: ing.trim(), count: 1, recipes: [r.name] };
+          ingredientMap[key] = { name: ing.trim(), count: 1, recipes: [r.name], quantity: '' };
         } else {
           ingredientMap[key].count++;
           if (!ingredientMap[key].recipes.includes(r.name)) {
@@ -116,10 +119,82 @@ router.post('/shopping-list', async (req, res) => {
     res.json({
       ingredients,
       recipeCount: recipes.length,
+      recipes: recipeList,
       recipeNames: recipes.map((r) => r.name),
     });
   } catch (err) {
     console.error('Shopping list error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Generate shopping list from today's meals
+router.post('/shopping-list-from-meals', async (req, res) => {
+  try {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+
+    const meals = await prisma.meal.findMany({
+      where: { user_id: req.userId, date: { gte: startOfDay, lt: endOfDay } },
+      orderBy: { created_at: 'asc' },
+    });
+
+    if (meals.length === 0) {
+      return res.json({ ingredients: [], recipeCount: 0, recipes: [], recipeNames: [], meals: [], message: 'No hay comidas registradas hoy' });
+    }
+
+    // Try to match meal names to recipes
+    const mealNames = meals.map((m) => m.name);
+    const matchedRecipes = await prisma.recipe.findMany({
+      where: { name: { in: mealNames } },
+    });
+
+    const ingredientMap = {};
+    const recipeList = [];
+
+    // Add ingredients from matched recipes
+    matchedRecipes.forEach((r) => {
+      recipeList.push({ id: r.id, name: r.name, image_url: r.image_url ? r.image_url.replace(/^http:/, 'https:') : null, calories: r.calories, protein_g: r.protein_g });
+      (r.ingredients || []).forEach((ing) => {
+        const key = ing.trim().toLowerCase();
+        if (!ingredientMap[key]) {
+          ingredientMap[key] = { name: ing.trim(), count: 1, recipes: [r.name], quantity: '' };
+        } else {
+          ingredientMap[key].count++;
+          if (!ingredientMap[key].recipes.includes(r.name)) {
+            ingredientMap[key].recipes.push(r.name);
+          }
+        }
+      });
+    });
+
+    // For meals without matching recipes, add the meal name as a "dish" with its foods
+    const matchedNames = matchedRecipes.map((r) => r.name);
+    const unmatchedMeals = meals.filter((m) => !matchedNames.includes(m.name));
+
+    const mealList = meals.map((m) => ({
+      id: m.id,
+      name: m.name,
+      meal_type: m.meal_type,
+      calories: m.calories,
+      protein_g: m.protein_g,
+      photo_url: m.photo_url,
+    }));
+
+    const ingredients = Object.values(ingredientMap).sort((a, b) => a.name.localeCompare(b.name));
+
+    res.json({
+      ingredients,
+      recipeCount: matchedRecipes.length,
+      recipes: recipeList,
+      recipeNames: matchedRecipes.map((r) => r.name),
+      meals: mealList,
+      unmatchedMeals: unmatchedMeals.map((m) => m.name),
+    });
+  } catch (err) {
+    console.error('Shopping list from meals error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -1621,7 +1621,8 @@ async function loadRecipes() {
       return;
     }
     grid.innerHTML = data.recipes.map((r) => `
-      <div class="recipe-card" onclick="viewRecipe('${r.id}')">
+      <div class="recipe-card" onclick="viewRecipe('${r.id}')" style="position:relative;">
+        <div class="recipe-select-checkbox" onclick="event.stopPropagation(); toggleRecipeSelect('${r.id}', this)" style="position:absolute; top:8px; right:8px; z-index:2; width:24px; height:24px; border-radius:4px; border:2px solid var(--border); background:rgba(255,255,255,0.9); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px;">○</div>
         ${r.image_url ? `<img class="recipe-img" src="${r.image_url}" alt="${r.name}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div class="recipe-img-placeholder" style="display:none;">🥗</div>` : '<div class="recipe-img-placeholder">🥗</div>'}
         <div class="recipe-info">
           <div class="recipe-name">${r.name}</div>
@@ -1631,6 +1632,65 @@ async function loadRecipes() {
       </div>
     `).join('');
   } catch (err) { console.error('Recipes error:', err); }
+}
+
+let selectedRecipeIds = new Set();
+
+function toggleRecipeSelect(recipeId, el) {
+  if (selectedRecipeIds.has(recipeId)) {
+    selectedRecipeIds.delete(recipeId);
+    el.textContent = '○';
+    el.style.background = 'rgba(255,255,255,0.9)';
+    el.style.borderColor = 'var(--border)';
+  } else {
+    selectedRecipeIds.add(recipeId);
+    el.textContent = '✓';
+    el.style.background = 'var(--accent)';
+    el.style.borderColor = 'var(--accent)';
+    el.style.color = '#fff';
+  }
+  updateRecipeSelectionBar();
+}
+
+function updateRecipeSelectionBar() {
+  let bar = document.getElementById('recipe-selection-bar');
+  if (selectedRecipeIds.size === 0) {
+    if (bar) bar.remove();
+    return;
+  }
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'recipe-selection-bar';
+    bar.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 20px; box-shadow:0 4px 20px rgba(0,0,0,0.15); display:flex; gap:12px; align-items:center; z-index:100;';
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = `
+    <span style="font-weight:600;">${selectedRecipeIds.size} seleccionada(s)</span>
+    <button class="btn-primary" style="width:auto; padding:8px 16px;" onclick="addSelectedRecipesToShoppingList()">🛒 Agregar a lista</button>
+    <button class="btn-secondary" style="width:auto; padding:8px 16px;" onclick="clearRecipeSelection()">Cancelar</button>
+  `;
+}
+
+function clearRecipeSelection() {
+  selectedRecipeIds.clear();
+  document.querySelectorAll('.recipe-select-checkbox').forEach((el) => {
+    el.textContent = '○';
+    el.style.background = 'rgba(255,255,255,0.9)';
+    el.style.borderColor = 'var(--border)';
+    el.style.color = '';
+  });
+  updateRecipeSelectionBar();
+}
+
+async function addSelectedRecipesToShoppingList() {
+  const ids = Array.from(selectedRecipeIds);
+  ids.forEach((id) => {
+    if (!shoppingListRecipeIds.includes(id)) {
+      shoppingListRecipeIds.push(id);
+    }
+  });
+  clearRecipeSelection();
+  openShoppingListModal();
 }
 
 function viewRecipe(id) {
@@ -1776,9 +1836,11 @@ async function saveRecipe(e) {
   } catch (err) { alert(err.message); }
 }
 
-// ===== Shopping List =====
+// ===== Shopping List (Cart) =====
 let shoppingListItems = [];
 let shoppingListRecipeIds = [];
+let shoppingListRecipes = [];
+let shoppingListMeals = [];
 
 function addRecipeToShoppingList(recipeId) {
   if (!shoppingListRecipeIds.includes(recipeId)) {
@@ -1802,63 +1864,109 @@ async function renderShoppingList() {
   const view = document.getElementById('shopping-list-view');
   if (!view) return;
 
-  if (shoppingListRecipeIds.length === 0) {
+  if (shoppingListRecipeIds.length === 0 && shoppingListMeals.length === 0) {
     view.innerHTML = `
-      <p style="color:var(--text-2); margin-bottom:1rem;">No hay recetas en tu lista. Agrega recetas desde la vista de detalle o usa los botones below.</p>
       <div style="margin-bottom:1rem;">
-        <strong>Recetas sugeridas para tu objetivo:</strong>
-        <div id="shopping-suggested-recipes" style="margin-top:0.5rem;">${loadingHtml()}</div>
+        <button class="btn-primary" style="width:100%; margin-bottom:8px;" onclick="generateShoppingListFromMeals()">🍽️ Generar desde mis comidas de hoy</button>
+        <button class="btn-secondary" style="width:100%; margin-bottom:8px;" onclick="generateShoppingListFromAI()">🤖 Generar con IA desde mi plan</button>
       </div>
-      <button class="btn-primary" onclick="generateShoppingListFromAI()" style="width:auto; padding:8px 16px;">🤖 Generar lista con IA desde mi plan</button>
+      <div style="margin-bottom:1rem;">
+        <input type="text" class="form-input" id="shopping-search" placeholder="Buscar receta para agregar..." oninput="searchRecipesForShopping(this.value)" style="margin-bottom:0.5rem;" />
+        <div id="shopping-suggested-recipes" style="max-height:300px; overflow-y:auto;"></div>
+      </div>
     `;
-    try {
-      const data = await apiCall('/recipes?limit=20');
-      const suggested = (data.recipes || []).slice(0, 8);
-      const sugEl = document.getElementById('shopping-suggested-recipes');
-      if (sugEl) {
-        sugEl.innerHTML = suggested.map((r) => `
-          <div class="list-item" style="cursor:pointer;" onclick="addRecipeToShoppingList('${r.id}')">
-            <div>
-              <div class="list-item-name">${r.name}</div>
-              <div class="list-item-meta">${r.calories} cal · ${r.protein_g}g prot</div>
-            </div>
-            <span class="list-item-badge">+ Agregar</span>
-          </div>
-        `).join('');
-      }
-    } catch (err) {
-      const sugEl = document.getElementById('shopping-suggested-recipes');
-      if (sugEl) sugEl.innerHTML = `<div class="empty-state-text">${err.message}</div>`;
-    }
+    searchRecipesForShopping('');
     return;
   }
 
   try {
-    const data = await apiCall('/recipes/shopping-list', 'POST', { recipeIds: shoppingListRecipeIds });
+    let data;
+    if (shoppingListRecipeIds.length > 0) {
+      data = await apiCall('/recipes/shopping-list', 'POST', { recipeIds: shoppingListRecipeIds });
+    } else {
+      data = { ingredients: [], recipes: [], recipeNames: [], recipeCount: 0 };
+    }
     shoppingListItems = data.ingredients;
+    shoppingListRecipes = data.recipes || [];
+
+    const totalItems = shoppingListItems.length;
+    const checkedItems = shoppingListItems.filter((i) => i.checked).length;
 
     view.innerHTML = `
-      <div style="margin-bottom:1rem;">
-        <strong>${data.recipeCount} receta(s) en la lista:</strong>
-        <div style="color:var(--text-2); font-size:0.85rem; margin-top:4px;">${data.recipeNames.join(', ')}</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1rem;">
+        <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="showAddRecipeSection()">+ Agregar receta</button>
+        <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="generateShoppingListFromMeals()">🍽️ Desde comidas de hoy</button>
+        <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="clearShoppingList()">🗑️ Limpiar</button>
       </div>
-      <div style="margin-bottom:1rem; display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="clearShoppingList()">Limpiar lista</button>
-        <button class="btn-primary" style="width:auto; padding:8px 14px;" onclick="downloadShoppingListPDF()">📄 Descargar PDF</button>
-        <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="sendShoppingListWhatsApp()">📱 Enviar por WhatsApp</button>
-      </div>
-      <div id="shopping-list-items">
-        ${shoppingListItems.map((item, idx) => `
-          <div class="list-item">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <input type="checkbox" id="shop-check-${idx}" ${item.checked ? 'checked' : ''} onchange="toggleShoppingItem(${idx})" style="width:18px; height:18px;" />
-              <div>
-                <div class="list-item-name" style="${item.checked ? 'text-decoration:line-through; opacity:0.5;' : ''}">${item.name}</div>
-                ${item.count > 1 ? `<div class="list-item-meta">En ${item.count} recetas</div>` : ''}
+
+      ${shoppingListRecipes.length > 0 ? `
+        <div style="margin-bottom:1rem;">
+          <strong>Platillos en la lista (${shoppingListRecipes.length}):</strong>
+          <div id="cart-recipes" style="margin-top:0.5rem;">
+            ${shoppingListRecipes.map((r, idx) => `
+              <div class="list-item" style="display:flex; align-items:center; gap:8px;">
+                ${r.image_url ? `<img src="${r.image_url}" style="width:40px; height:40px; border-radius:6px; object-fit:cover;" onerror="this.style.display='none'" />` : '<div style="width:40px; height:40px; border-radius:6px; background:var(--bg); display:flex; align-items:center; justify-content:center;">🥗</div>'}
+                <div style="flex:1;">
+                  <div class="list-item-name">${r.name}</div>
+                  <div class="list-item-meta">${r.calories} cal · ${r.protein_g}g prot</div>
+                </div>
+                <button onclick="removeRecipeFromShoppingList(${idx})" style="background:none; border:none; color:var(--danger); font-size:18px; cursor:pointer;">×</button>
               </div>
-            </div>
+            `).join('')}
           </div>
-        `).join('')}
+        </div>
+      ` : ''}
+
+      ${shoppingListMeals.length > 0 ? `
+        <div style="margin-bottom:1rem;">
+          <strong>Comidas de hoy (${shoppingListMeals.length}):</strong>
+          <div style="margin-top:0.5rem;">
+            ${shoppingListMeals.map((m) => `
+              <div class="list-item" style="display:flex; align-items:center; gap:8px;">
+                ${m.photo_url ? `<img src="${m.photo_url}" style="width:40px; height:40px; border-radius:6px; object-fit:cover;" />` : '<div style="width:40px; height:40px; border-radius:6px; background:var(--bg); display:flex; align-items:center; justify-content:center;">🍽️</div>'}
+                <div style="flex:1;">
+                  <div class="list-item-name">${m.name}</div>
+                  <div class="list-item-meta">${m.calories} cal · ${m.meal_type}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <div style="margin-bottom:1rem; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn-primary" style="width:auto; padding:10px 18px;" onclick="downloadShoppingListPDF()">📄 Descargar PDF</button>
+        <button class="btn-secondary" style="width:auto; padding:10px 18px;" onclick="sendShoppingListWhatsApp()">📱 Enviar por WhatsApp</button>
+      </div>
+
+      <div style="margin-bottom:0.5rem; display:flex; justify-content:space-between; align-items:center;">
+        <strong>Lista de ingredientes (${totalItems})</strong>
+        ${totalItems > 0 ? `<span style="font-size:0.85rem; color:var(--text-2);">${checkedItems}/${totalItems} en carrito</span>` : ''}
+      </div>
+
+      ${totalItems === 0 ? `
+        <div class="empty-state">
+          <div class="empty-state-text">No hay ingredientes. Agrega recetas o genera desde tus comidas.</div>
+        </div>
+      ` : `
+        <div id="shopping-list-items">
+          ${shoppingListItems.map((item, idx) => `
+            <div class="list-item" style="display:flex; align-items:center; gap:8px;">
+              <input type="checkbox" id="shop-check-${idx}" ${item.checked ? 'checked' : ''} onchange="toggleShoppingItem(${idx})" style="width:18px; height:18px; flex-shrink:0;" />
+              <div style="flex:1;">
+                <div class="list-item-name" style="${item.checked ? 'text-decoration:line-through; opacity:0.5;' : ''}">${item.name}</div>
+                ${item.count > 1 ? `<div class="list-item-meta">En ${item.count} receta(s)</div>` : ''}
+              </div>
+              <input type="text" placeholder="Cant." value="${item.quantity || ''}" onchange="updateShoppingItemQty(${idx}, this.value)" style="width:60px; padding:4px 6px; font-size:0.8rem; border:1px solid var(--border); border-radius:4px; background:var(--bg);" />
+              <button onclick="removeShoppingItem(${idx})" style="background:none; border:none; color:var(--danger); font-size:16px; cursor:pointer;">×</button>
+            </div>
+          `).join('')}
+        </div>
+      `}
+
+      <div id="shopping-add-section" style="display:none; margin-top:1rem; border-top:1px solid var(--border); padding-top:1rem;">
+        <input type="text" class="form-input" id="shopping-search-add" placeholder="Buscar receta..." oninput="searchRecipesForShopping(this.value, 'shopping-add-results')" style="margin-bottom:0.5rem;" />
+        <div id="shopping-add-results" style="max-height:200px; overflow-y:auto;"></div>
       </div>
     `;
   } catch (err) {
@@ -1876,10 +1984,89 @@ function toggleShoppingItem(idx) {
   }
 }
 
+function updateShoppingItemQty(idx, val) {
+  if (shoppingListItems[idx]) shoppingListItems[idx].quantity = val;
+}
+
+function removeShoppingItem(idx) {
+  shoppingListItems.splice(idx, 1);
+  renderShoppingList();
+}
+
+function showAddRecipeSection() {
+  const sec = document.getElementById('shopping-add-section');
+  if (sec) {
+    sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
+    if (sec.style.display === 'block') {
+      searchRecipesForShopping('', 'shopping-add-results');
+    }
+  }
+}
+
+async function searchRecipesForShopping(query, targetId) {
+  const tid = targetId || 'shopping-suggested-recipes';
+  const el = document.getElementById(tid);
+  if (!el) return;
+  try {
+    const params = new URLSearchParams();
+    if (query) params.set('search', query);
+    const data = await apiCall(`/recipes?${params.toString()}`);
+    const recipes = (data.recipes || []).slice(0, 12);
+    if (recipes.length === 0) {
+      el.innerHTML = '<div style="color:var(--text-2); padding:8px;">No se encontraron recetas</div>';
+      return;
+    }
+    el.innerHTML = recipes.map((r) => `
+      <div class="list-item" style="cursor:pointer; display:flex; align-items:center; gap:8px;" onclick="addRecipeToShoppingListAndRender('${r.id}')">
+        ${r.image_url ? `<img src="${r.image_url}" style="width:36px; height:36px; border-radius:6px; object-fit:cover;" onerror="this.style.display='none'" />` : '<div style="width:36px; height:36px; border-radius:6px; background:var(--bg); display:flex; align-items:center; justify-content:center;">🥗</div>'}
+        <div style="flex:1;">
+          <div class="list-item-name">${r.name}</div>
+          <div class="list-item-meta">${r.calories} cal · ${r.protein_g}g prot</div>
+        </div>
+        <span style="color:var(--accent); font-weight:600;">+ Agregar</span>
+      </div>
+    `).join('');
+  } catch (err) {
+    el.innerHTML = `<div style="color:var(--text-2); padding:8px;">${err.message}</div>`;
+  }
+}
+
+async function addRecipeToShoppingListAndRender(recipeId) {
+  if (!shoppingListRecipeIds.includes(recipeId)) {
+    shoppingListRecipeIds.push(recipeId);
+  }
+  await renderShoppingList();
+}
+
+function removeRecipeFromShoppingList(idx) {
+  if (shoppingListRecipes[idx]) {
+    const rid = shoppingListRecipes[idx].id;
+    shoppingListRecipeIds = shoppingListRecipeIds.filter((id) => id !== rid);
+    renderShoppingList();
+  }
+}
+
 function clearShoppingList() {
   shoppingListRecipeIds = [];
   shoppingListItems = [];
+  shoppingListRecipes = [];
+  shoppingListMeals = [];
   renderShoppingList();
+}
+
+async function generateShoppingListFromMeals() {
+  try {
+    const data = await apiCall('/recipes/shopping-list-from-meals', 'POST', {});
+    if (data.message) {
+      alert('No hay comidas registradas hoy. Agrega comidas en la sección de Nutrición primero.');
+      return;
+    }
+    shoppingListItems = data.ingredients || [];
+    shoppingListRecipes = data.recipes || [];
+    shoppingListMeals = data.meals || [];
+    shoppingListRecipeIds = (data.recipes || []).map((r) => r.id);
+    renderShoppingList();
+  } catch (err) { alert(err.message); }
 }
 
 async function generateShoppingListFromAI() {
@@ -1887,6 +2074,7 @@ async function generateShoppingListFromAI() {
     const data = await apiCall('/ai/recommend-recipes', 'POST', {});
     if (data.recipes && data.recipes.length > 0) {
       shoppingListRecipeIds = data.recipes.map((r) => r.id);
+      shoppingListMeals = [];
       renderShoppingList();
     } else {
       alert('No hay recetas recomendadas disponibles');
@@ -1894,76 +2082,164 @@ async function generateShoppingListFromAI() {
   } catch (err) { alert(err.message); }
 }
 
-function downloadShoppingListPDF() {
-  if (shoppingListItems.length === 0) { alert('La lista está vacía'); return; }
+async function downloadShoppingListPDF() {
+  if (shoppingListItems.length === 0 && shoppingListRecipes.length === 0 && shoppingListMeals.length === 0) {
+    alert('La lista está vacía');
+    return;
+  }
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  // Header with Talos branding
+  // ===== PAGE 1: Logo / Cover =====
   doc.setFillColor(25, 118, 210);
-  doc.rect(0, 0, 210, 35, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(22);
+  doc.rect(0, 0, 210, 297, 'F');
+
+  doc.setFillColor(255, 255, 255);
+  doc.circle(105, 110, 25, 'F');
+  doc.setTextColor(25, 118, 210);
+  doc.setFontSize(28);
   doc.setFont('helvetica', 'bold');
-  doc.text('TALOS FORGE', 105, 18, { align: 'center' });
-  doc.setFontSize(11);
+  doc.text('TF', 105, 118, { align: 'center' });
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(28);
+  doc.text('TALOS FORGE', 105, 160, { align: 'center' });
+  doc.setFontSize(14);
   doc.setFont('helvetica', 'normal');
-  doc.text('Lista de Supermercado', 105, 27, { align: 'center' });
+  doc.text('Lista de Supermercado', 105, 172, { align: 'center' });
 
-  // Date
-  doc.setTextColor(80, 80, 80);
-  doc.setFontSize(10);
   const today = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  doc.text(`Fecha: ${today}`, 20, 45);
-
-  // User info
+  doc.setFontSize(11);
+  doc.text(today, 105, 195, { align: 'center' });
   if (currentUser) {
-    doc.text(`Usuario: ${currentUser.username}`, 20, 52);
+    doc.text(`Usuario: ${currentUser.username}`, 105, 205, { align: 'center' });
   }
 
-  // Separator line
-  doc.setDrawColor(200, 200, 200);
-  doc.line(20, 57, 190, 57);
+  doc.setFontSize(10);
+  doc.text(`${shoppingListRecipes.length + shoppingListMeals.length} platillo(s) · ${shoppingListItems.length} ingrediente(s)`, 105, 220, { align: 'center' });
 
-  // Ingredients list
-  doc.setFontSize(13);
-  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(200, 200, 200);
+  doc.text('Talos Forge - Your Progress', 105, 285, { align: 'center' });
+
+  // ===== PAGE 2: Dish photos =====
+  doc.addPage();
+  doc.setFillColor(245, 245, 245);
+  doc.rect(0, 0, 210, 297, 'F');
+
   doc.setTextColor(40, 40, 40);
-  doc.text('Ingredientes', 20, 67);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Platillos', 105, 20, { align: 'center' });
+  doc.setDrawColor(200, 200, 200);
+  doc.line(20, 25, 190, 25);
+
+  let y = 35;
+  const allDishes = [
+    ...shoppingListRecipes.map((r) => ({ name: r.name, image_url: r.image_url, calories: r.calories, protein: r.protein_g, source: 'Receta' })),
+    ...shoppingListMeals.map((m) => ({ name: m.name, image_url: m.photo_url, calories: m.calories, protein: m.protein_g, source: m.meal_type })),
+  ];
+
+  for (const dish of allDishes) {
+    if (y > 250) {
+      doc.addPage();
+      doc.setFillColor(245, 245, 245);
+      doc.rect(0, 0, 210, 297, 'F');
+      y = 20;
+    }
+
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(20, y, 170, 40, 4, 4, 'F');
+    doc.setDrawColor(220, 220, 220);
+    doc.roundedRect(20, y, 170, 40, 4, 4, 'S');
+
+    if (dish.image_url) {
+      try {
+        const imgResp = await fetch(dish.image_url);
+        const blob = await imgResp.blob();
+        const reader = new FileReader();
+        const base64 = await new Promise((resolve) => {
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
+        const imgData = base64.split(',')[1];
+        const fmt = dish.image_url.includes('.png') ? 'PNG' : 'JPEG';
+        doc.addImage(imgData, fmt, 24, y + 4, 32, 32);
+      } catch (e) {
+        doc.setFontSize(16);
+        doc.setTextColor(180, 180, 180);
+        doc.text('?', 40, y + 24, { align: 'center' });
+      }
+    } else {
+      doc.setFontSize(16);
+      doc.setTextColor(180, 180, 180);
+      doc.text('?', 40, y + 24, { align: 'center' });
+    }
+
+    doc.setTextColor(40, 40, 40);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    const dishName = dish.name.length > 35 ? dish.name.substring(0, 32) + '...' : dish.name;
+    doc.text(dishName, 62, y + 14);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text(`${dish.source} · ${dish.calories} cal · ${dish.protein}g prot`, 62, y + 24);
+
+    y += 48;
+  }
+
+  // ===== PAGE 3+: Ingredients list =====
+  doc.addPage();
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, 210, 297, 'F');
+
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Ingredientes a comprar', 105, 20, { align: 'center' });
+  doc.setDrawColor(200, 200, 200);
+  doc.line(20, 25, 190, 25);
 
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
 
-  let y = 77;
-  shoppingListItems.forEach((item, idx) => {
-    if (y > 270) {
+  y = 35;
+  shoppingListItems.forEach((item) => {
+    if (y > 275) {
       doc.addPage();
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, 210, 297, 'F');
       y = 20;
     }
 
     const checkbox = item.checked ? '[x]' : '[ ]';
-    const text = `${checkbox}  ${item.name}`;
+    let text = `${checkbox}  ${item.name}`;
+    if (item.quantity) text += `  — ${item.quantity}`;
+    doc.setTextColor(40, 40, 40);
     doc.text(text, 22, y);
 
     if (item.count > 1) {
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       doc.setTextColor(120, 120, 120);
-      doc.text(`(en ${item.count} recetas)`, 120, y);
+      doc.text(`(en ${item.count} recetas)`, 150, y);
       doc.setFontSize(11);
-      doc.setTextColor(40, 40, 40);
     }
 
     y += 7;
   });
 
-  // Footer
+  // Footer on all pages
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
-    doc.text('Talos Forge - Your Progress', 105, 290, { align: 'center' });
+    if (i > 1) {
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text('Talos Forge - Your Progress', 105, 290, { align: 'center' });
+    }
     doc.text(`Pagina ${i} de ${pageCount}`, 190, 290, { align: 'right' });
   }
 
@@ -1976,11 +2252,19 @@ function sendShoppingListWhatsApp() {
   let message = '*🛒 Lista de Supermercado - Talos Forge*\n\n';
   message += `Fecha: ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}\n`;
   if (currentUser) message += `Usuario: ${currentUser.username}\n`;
-  message += '\n*Ingredientes:*\n';
 
+  if (shoppingListRecipes.length > 0) {
+    message += '\n*Platillos:*\n';
+    shoppingListRecipes.forEach((r) => {
+      message += `• ${r.name} (${r.calories} cal)\n`;
+    });
+  }
+
+  message += '\n*Ingredientes:*\n';
   shoppingListItems.forEach((item) => {
     const check = item.checked ? '✅' : '⬜';
     message += `${check} ${item.name}`;
+    if (item.quantity) message += ` — ${item.quantity}`;
     if (item.count > 1) message += ` _(en ${item.count} recetas)_`;
     message += '\n';
   });
