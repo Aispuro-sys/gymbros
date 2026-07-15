@@ -70,4 +70,83 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Weekly nutrition summary
+router.get('/weekly-summary', async (req, res) => {
+  try {
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - 6);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const [macrosLogs, meals] = await Promise.all([
+      prisma.macrosDailyLog.findMany({
+        where: { user_id: req.userId, date: { gte: startOfWeek } },
+        orderBy: { date: 'desc' },
+      }),
+      prisma.meal.findMany({
+        where: { user_id: req.userId, date: { gte: startOfWeek } },
+        orderBy: { date: 'desc' },
+      }),
+    ]);
+
+    const byDay = {};
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const key = d.toISOString().split('T')[0];
+      byDay[key] = {
+        date: key,
+        calories: 0,
+        protein_g: 0,
+        carbs_g: 0,
+        fats_g: 0,
+        meals_total: 0,
+        meals_confirmed: 0,
+        meals_unconfirmed: 0,
+      };
+    }
+
+    macrosLogs.forEach((log) => {
+      const key = new Date(log.date).toISOString().split('T')[0];
+      if (byDay[key]) {
+        byDay[key].calories += log.calories || 0;
+        byDay[key].protein_g += log.protein_g || 0;
+        byDay[key].carbs_g += log.carbs_g || 0;
+        byDay[key].fats_g += log.fats_g || 0;
+      }
+    });
+
+    meals.forEach((meal) => {
+      const key = new Date(meal.date).toISOString().split('T')[0];
+      if (byDay[key]) {
+        byDay[key].meals_total++;
+        if (meal.confirmed) {
+          byDay[key].meals_confirmed++;
+        } else {
+          byDay[key].meals_unconfirmed++;
+          byDay[key].calories += meal.calories || 0;
+          byDay[key].protein_g += meal.protein_g || 0;
+          byDay[key].carbs_g += meal.carbs_g || 0;
+          byDay[key].fats_g += meal.fats_g || 0;
+        }
+      }
+    });
+
+    const days = Object.values(byDay).sort((a, b) => b.date.localeCompare(a.date));
+    const avgCalories = Math.round(days.reduce((s, d) => s + d.calories, 0) / 7);
+    const totalUnconfirmed = days.reduce((s, d) => s + d.meals_unconfirmed, 0);
+    const totalMeals = days.reduce((s, d) => s + d.meals_total, 0);
+
+    res.json({
+      avgCalories,
+      totalMeals,
+      totalUnconfirmed,
+      days,
+    });
+  } catch (err) {
+    console.error('Weekly summary error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

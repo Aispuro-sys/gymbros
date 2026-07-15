@@ -251,14 +251,25 @@ async function toggleExercise(routineId, exerciseId, event) {
 // ===== Overview =====
 async function loadOverview() {
   try {
-    const [routinesData, macrosData, suppData, progressData] = await Promise.all([
+    const results = await Promise.allSettled([
       apiCall('/ai/routines-with-gifs'),
       apiCall(`/macros?date=${new Date().toISOString().split('T')[0]}`),
       apiCall('/supplements'),
       apiCall('/routines/progress'),
+      apiCall('/macros/weekly-summary'),
     ]);
+    const routinesData = results[0].status === 'fulfilled' ? results[0].value : { routines: [] };
+    const macrosData = results[1].status === 'fulfilled' ? results[1].value : { logs: [] };
+    const suppData = results[2].status === 'fulfilled' ? results[2].value : { supplements: [] };
+    const progressData = results[3].status === 'fulfilled' ? results[3].value : null;
+    const weeklyNutritionData = results[4].status === 'fulfilled' ? results[4].value : null;
+
+    if (results.some((r) => r.status === 'rejected')) {
+      console.warn('Overview partial errors:', results.filter((r) => r.status === 'rejected').map((r) => r.reason?.message));
+    }
+
     const u = currentUser;
-    const todayLog = macrosData.logs[0];
+    const todayLog = macrosData.logs && macrosData.logs[0];
     const todayDow = new Date().getDay() === 0 ? 7 : new Date().getDay();
     const todayRoutine = routinesData.routines.find((r) => r.day_of_week === todayDow);
     document.getElementById('stats-grid').innerHTML = `
@@ -295,7 +306,7 @@ async function loadOverview() {
     } else {
       document.getElementById('overview-macros').innerHTML = emptyState('Sin registro de macros hoy');
     }
-    if (suppData.supplements.length > 0) {
+    if (suppData.supplements && suppData.supplements.length > 0) {
       document.getElementById('overview-supplements').innerHTML = suppData.supplements.map((s) => `
         <div class="list-item"><div><div class="list-item-name">${s.name}</div><div class="list-item-meta">${s.dosage} · ${s.is_medication ? 'Medicina' : 'Suplemento'}</div></div>
         <span class="list-item-badge badge-${s.time_of_day.toLowerCase().replace('_', '-')}">${timeLabel(s.time_of_day)}</span></div>
@@ -320,6 +331,34 @@ async function loadOverview() {
           `).join('')}
         `;
       }
+    } else if (progEl) {
+      progEl.innerHTML = emptyState('No se pudo cargar el progreso.');
+    }
+
+    const wnEl = document.getElementById('overview-weekly-nutrition');
+    if (wnEl && weeklyNutritionData) {
+      const wn = weeklyNutritionData;
+      if (wn.totalMeals === 0 && wn.avgCalories === 0) {
+        wnEl.innerHTML = emptyState('Sin registros de nutrición esta semana. Registra tus comidas para ver tu resumen.');
+      } else {
+        wnEl.innerHTML = `
+          <div class="exercise-row"><span class="exercise-name">Promedio diario de calorías</span><span class="exercise-stat">${wn.avgCalories} kcal</span></div>
+          <div class="exercise-row"><span class="exercise-name">Comidas registradas</span><span class="exercise-stat">${wn.totalMeals}</span></div>
+          ${wn.totalUnconfirmed > 0 ? `<div class="exercise-row"><span class="exercise-name">Comidas sin confirmar</span><span class="exercise-stat" style="color:var(--warning);">${wn.totalUnconfirmed}</span></div>` : ''}
+          <div style="margin-top:0.5rem;">
+            ${(wn.days || []).filter((d) => d.calories > 0 || d.meals_total > 0).map((d) => `
+              <div class="list-item">
+                <div>
+                  <div class="list-item-name">${new Date(d.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</div>
+                  <div class="list-item-meta">${d.calories} kcal · ${d.protein_g}g prot · ${d.meals_total} comidas${d.meals_unconfirmed > 0 ? ` · ${d.meals_unconfirmed} sin confirmar` : ''}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+    } else if (wnEl) {
+      wnEl.innerHTML = emptyState('No se pudo cargar el resumen semanal.');
     }
   } catch (err) { console.error('Overview error:', err); }
 }
@@ -1573,13 +1612,15 @@ async function loadRecipes() {
     if (mealType && mealType !== 'ANY') params.set('meal_type', mealType);
     const data = await apiCall(`/recipes?${params.toString()}`);
     const grid = document.getElementById('recipes-grid');
+    const countEl = document.getElementById('recipes-count');
+    if (countEl) countEl.textContent = `${data.recipes.length} recetas`;
     if (!data.recipes || data.recipes.length === 0) {
       grid.innerHTML = emptyState('No hay recetas aún');
       return;
     }
     grid.innerHTML = data.recipes.map((r) => `
       <div class="recipe-card" onclick="viewRecipe('${r.id}')">
-        ${r.image_url ? `<img class="recipe-img" src="${r.image_url}" alt="${r.name}" />` : '<div class="recipe-img-placeholder">🥗</div>'}
+        ${r.image_url ? `<img class="recipe-img" src="${r.image_url}" alt="${r.name}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div class="recipe-img-placeholder" style="display:none;">🥗</div>` : '<div class="recipe-img-placeholder">🥗</div>'}
         <div class="recipe-info">
           <div class="recipe-name">${r.name}</div>
           <div class="recipe-meta">${r.calories} cal · ${r.protein_g}g prot · ${r.prep_time_min}min</div>

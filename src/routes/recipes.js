@@ -28,10 +28,14 @@ router.get('/', async (req, res) => {
     const recipes = await prisma.recipe.findMany({
       where,
       orderBy: { protein_g: 'desc' },
-      take: parseInt(limit) || 50,
     });
 
-    res.json({ recipes });
+    const recipesWithHttps = recipes.map((r) => ({
+      ...r,
+      image_url: r.image_url ? r.image_url.replace(/^http:/, 'https:') : null,
+    }));
+
+    res.json({ recipes: recipesWithHttps });
   } catch (err) {
     console.error('Recipes fetch error:', err);
     res.status(500).json({ error: 'Internal server error' });

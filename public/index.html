@@ -291,6 +291,12 @@
           </div>
           <div id="overview-progress"></div>
         </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Resumen semanal de nutrición</div>
+          </div>
+          <div id="overview-weekly-nutrition"></div>
+        </div>
       </section>
 
       <!-- AI Coach -->
@@ -544,12 +550,14 @@
         <div class="page-header">
           <div>
             <h1 class="page-title">Recetas Fitness</h1>
-            <div class="page-date">Comidas saludables con macros calculados</div>
+            <div class="page-date"><span id="recipes-count">Cargando...</span> · Comidas saludables con macros calculados</div>
           </div>
-          <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="openRecipeModal()">+ Receta</button>
-          <button class="btn-primary" style="width:auto; padding:8px 14px; margin-left:8px;" onclick="recommendRecipes()">
-            <span class="badge-ai list-item-badge" style="margin-right:4px;">IA</span> Recomendar
-          </button>
+          <div style="display:flex; gap:8px;">
+            <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="openRecipeModal()">+ Receta</button>
+            <button class="btn-primary" style="width:auto; padding:8px 14px;" onclick="recommendRecipes()">
+              <span class="badge-ai list-item-badge" style="margin-right:4px;">IA</span> Recomendar
+            </button>
+          </div>
         </div>
         <div class="search-bar" style="margin-bottom:1rem;">
           <input type="text" id="recipe-search" placeholder="Buscar receta..." oninput="loadRecipes()" />
