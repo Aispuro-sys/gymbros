@@ -1,7 +1,7 @@
 const express = require('express');
 const prisma = require('../lib/prisma');
 const authMiddleware = require('../middleware/auth');
-const { generateRoutine, generateWeeklyRoutine, generateNutritionPlan, hasOpenAI, analyzeFoodPhoto, analyzeSupplementPhoto } = require('../lib/aiEngine');
+const { generateRoutine, generateWeeklyRoutine, generateNutritionPlan, hasOpenAI, hasGemini, hasAI, analyzeFoodPhoto, analyzeSupplementPhoto } = require('../lib/aiEngine');
 const { getExerciseById } = require('../lib/exerciseDataset');
 
 const router = express.Router();
@@ -96,7 +96,7 @@ router.post('/generate-weekly', async (req, res) => {
       plan_name: result.plan_name,
       days: createdDays,
       ai_notes: result.ai_notes,
-      ai_powered: hasOpenAI(),
+      ai_powered: hasAI(),
     });
   } catch (err) {
     console.error('AI generate weekly error:', err);
@@ -159,7 +159,7 @@ router.post('/generate-routine', async (req, res) => {
       return { ...ex, gif_url: gifUrl, image };
     });
 
-    res.status(201).json({ routine: { ...routine, exercises: exercisesWithGifs }, ai_notes: result.ai_notes, ai_powered: hasOpenAI() });
+    res.status(201).json({ routine: { ...routine, exercises: exercisesWithGifs }, ai_notes: result.ai_notes, ai_powered: hasAI() });
   } catch (err) {
     console.error('AI generate routine error:', err);
     res.status(500).json({ error: 'Failed to generate routine' });
@@ -182,7 +182,7 @@ router.post('/nutrition-plan', async (req, res) => {
       body_type: user.body_type,
     });
 
-    res.json({ plan, ai_powered: hasOpenAI() });
+    res.json({ plan, ai_powered: hasAI() });
   } catch (err) {
     console.error('AI nutrition plan error:', err);
     res.status(500).json({ error: 'Failed to generate nutrition plan' });
@@ -222,7 +222,7 @@ router.get('/routines-with-gifs', async (req, res) => {
 });
 
 router.get('/status', (req, res) => {
-  res.json({ ai_powered: hasOpenAI() });
+  res.json({ ai_powered: hasAI() });
 });
 
 // Analyze food photo with AI Vision
@@ -233,7 +233,7 @@ router.post('/analyze-food', async (req, res) => {
 
     const base64 = image.replace(/^data:image\/\w+;base64,/, '');
     const result = await analyzeFoodPhoto(base64);
-    res.json({ analysis: result, ai_powered: hasOpenAI() });
+    res.json({ analysis: result, ai_powered: hasAI() });
   } catch (err) {
     console.error('Analyze food error:', err);
     res.status(500).json({ error: 'Error al analizar la imagen' });
@@ -248,7 +248,7 @@ router.post('/analyze-supplement', async (req, res) => {
 
     const base64 = image.replace(/^data:image\/\w+;base64,/, '');
     const result = await analyzeSupplementPhoto(base64);
-    res.json({ analysis: result, ai_powered: hasOpenAI() });
+    res.json({ analysis: result, ai_powered: hasAI() });
   } catch (err) {
     console.error('Analyze supplement error:', err);
     res.status(500).json({ error: 'Error al analizar la imagen' });
@@ -309,7 +309,7 @@ router.post('/recommend-recipes', async (req, res) => {
     res.json({
       recipes: scored.slice(0, 8),
       goal,
-      ai_powered: hasOpenAI(),
+      ai_powered: hasAI(),
     });
   } catch (err) {
     console.error('AI recipe recommendation error:', err);

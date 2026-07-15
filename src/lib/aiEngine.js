@@ -4,6 +4,122 @@ function hasOpenAI() {
   return !!process.env.OPENAI_API_KEY;
 }
 
+function hasGemini() {
+  return !!process.env.GEMINI_API_KEY;
+}
+
+function hasAI() {
+  return hasOpenAI() || hasGemini();
+}
+
+// ===== Google Gemini (free tier) =====
+async function callGeminiVision(systemPrompt, base64Image, userText) {
+  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: {
+        parts: [{ text: systemPrompt }],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: userText + '\n\nResponde SOLO con JSON válido, sin texto adicional ni markdown.' },
+            {
+              inline_data: {
+                mime_type: 'image/jpeg',
+                data: base64Image,
+              },
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 800,
+        responseMimeType: 'application/json',
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Gemini API error: ${err}`);
+  }
+
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+  return JSON.parse(text);
+}
+
+async function callGeminiText(systemPrompt, userPrompt) {
+  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: {
+        parts: [{ text: systemPrompt }],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: userPrompt + '\n\nResponde SOLO con JSON válido, sin texto adicional ni markdown.' }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2000,
+        responseMimeType: 'application/json',
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Gemini API error: ${err}`);
+  }
+
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+  return JSON.parse(text);
+}
+
+// ===== Unified AI callers (tries Gemini first, then OpenAI) =====
+async function callAI(systemPrompt, userPrompt) {
+  if (hasGemini()) {
+    try {
+      return await callGeminiText(systemPrompt, userPrompt);
+    } catch (err) {
+      console.error('Gemini text error, falling back:', err.message);
+    }
+  }
+  if (hasOpenAI()) {
+    return await callOpenAI(systemPrompt, userPrompt);
+  }
+  throw new Error('No AI provider configured');
+}
+
+async function callAIVision(systemPrompt, base64Image, userText) {
+  if (hasGemini()) {
+    try {
+      return await callGeminiVision(systemPrompt, base64Image, userText);
+    } catch (err) {
+      console.error('Gemini vision error, falling back to OpenAI:', err.message);
+    }
+  }
+  if (hasOpenAI()) {
+    return await callOpenAIVision(systemPrompt, base64Image, userText);
+  }
+  throw new Error('No AI provider configured for vision');
+}
+
 async function callOpenAI(systemPrompt, userPrompt) {
   const model = process.env.AI_MODEL || 'gpt-4o';
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -264,7 +380,7 @@ function generateFallbackWeekly(params) {
 }
 
 async function generateWeeklyRoutine(params) {
-  if (hasOpenAI()) {
+  if (hasAI()) {
     try {
       let availableExercises = getExercises();
       if (params.equipment && params.equipment !== 'all') {
@@ -272,7 +388,7 @@ async function generateWeeklyRoutine(params) {
       }
       availableExercises = availableExercises.slice(0, 200);
       const userPrompt = buildWeeklyPrompt(params, availableExercises);
-      const result = await callOpenAI(SYSTEM_PROMPT_WEEKLY, userPrompt);
+      const result = await callAI(SYSTEM_PROMPT_WEEKLY, userPrompt);
 
       const allExercises = getExercises();
       const exerciseMap = {};
@@ -499,9 +615,9 @@ Responde en JSON con este formato:
 Extrae toda la información visible en la etiqueta. Si no puedes leer algo, usa null.`;
 
 async function analyzeFoodPhoto(base64Image) {
-  if (hasOpenAI()) {
+  if (hasAI()) {
     try {
-      return await callOpenAIVision(
+      return await callAIVision(
         FOOD_VISION_PROMPT,
         base64Image,
         'Analiza esta imagen de comida y estima los macros. Responde en JSON.'
@@ -521,16 +637,16 @@ async function analyzeFoodPhoto(base64Image) {
     sugar_g: null,
     sodium_mg: null,
     confidence: 'low',
-    notes: hasOpenAI()
+    notes: hasAI()
       ? 'Error al analizar la imagen. Intenta de nuevo.'
-      : 'Se requiere una API key de OpenAI para analizar fotos de comida. Configura OPENAI_API_KEY en .env',
+      : 'Se requiere una API key de IA (GEMINI_API_KEY o OPENAI_API_KEY) para analizar fotos. Configúrala en .env',
   };
 }
 
 async function analyzeSupplementPhoto(base64Image) {
-  if (hasOpenAI()) {
+  if (hasAI()) {
     try {
-      return await callOpenAIVision(
+      return await callAIVision(
         SUPPLEMENT_VISION_PROMPT,
         base64Image,
         'Analiza esta imagen del frasco/etiqueta del suplemento y extrae la información. Responde en JSON.'
@@ -554,10 +670,10 @@ async function analyzeSupplementPhoto(base64Image) {
     usage_instructions: null,
     warnings: null,
     confidence: 'low',
-    notes: hasOpenAI()
+    notes: hasAI()
       ? 'Error al analizar la imagen. Intenta de nuevo.'
-      : 'Se requiere una API key de OpenAI para analizar fotos de suplementos. Configura OPENAI_API_KEY en .env',
+      : 'Se requiere una API key de IA (GEMINI_API_KEY o OPENAI_API_KEY) para analizar fotos. Configúrala en .env',
   };
 }
 
-module.exports = { generateRoutine, generateWeeklyRoutine, generateNutritionPlan, hasOpenAI, analyzeFoodPhoto, analyzeSupplementPhoto };
+module.exports = { generateRoutine, generateWeeklyRoutine, generateNutritionPlan, hasOpenAI, hasGemini, hasAI, analyzeFoodPhoto, analyzeSupplementPhoto };
