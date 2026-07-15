@@ -1329,6 +1329,19 @@ select.form-input option {
   white-space: nowrap;
 }
 
+.exercise-instruction-hint {
+  font-size: 0.68rem;
+  color: var(--text-3);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.exercise-with-gif[onclick]:hover {
+  background: var(--surface-2);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
 /* ===== Meal recommendations ===== */
 .meal-card {
   background: var(--surface);

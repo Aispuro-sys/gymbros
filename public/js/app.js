@@ -185,8 +185,9 @@ function exerciseGifHtml(ex) {
   const img = ex.image ? `/exercises-dataset/${ex.image}` : null;
   const mediaSrc = gif || img;
   const isDone = completedExercises.includes(ex.id);
+  const clickable = ex.exercise_dataset_id ? `onclick="viewExercise('${ex.exercise_dataset_id}')" style="cursor:pointer;"` : '';
   return `
-    <div class="exercise-with-gif ${isDone ? 'exercise-done' : ''}">
+    <div class="exercise-with-gif ${isDone ? 'exercise-done' : ''}" ${clickable}>
       ${mediaSrc ? `<img src="${mediaSrc}" alt="${ex.name}" class="exercise-gif" loading="lazy" />` : ''}
       <div class="exercise-info">
         <div class="exercise-name">${ex.name}</div>
@@ -195,6 +196,7 @@ function exerciseGifHtml(ex) {
           <span>${ex.reps} reps</span>
           <span>${ex.rest_seconds}s descanso</span>
         </div>
+        ${ex.exercise_dataset_id ? '<div class="exercise-instruction-hint">Toca para ver instrucciones</div>' : ''}
       </div>
       <label class="exercise-check" onclick="toggleExercise('${ex.routine_id || ''}', '${ex.id}', event)">
         <input type="checkbox" ${isDone ? 'checked' : ''} />
@@ -641,10 +643,12 @@ async function deleteRoutine(id) {
 }
 
 function openRoutineModal() {
+  const dayOptions = DAY_NAMES_FULL.map((d, i) => `<option value="${i + 1}">${d}</option>`).join('');
   showModal(`
     <div class="modal-header"><div class="modal-title">Nueva rutina</div><button class="modal-close" onclick="closeModal()">&times;</button></div>
     <form onsubmit="createRoutine(event)">
       <div class="form-group"><label>Nombre</label><input type="text" class="form-input" id="routine-name" placeholder="Push Day" required /></div>
+      <div class="form-group"><label>Día de la semana</label><select class="form-input" id="routine-day"><option value="">Sin día asignado</option>${dayOptions}</select></div>
       <div id="exercises-container"></div>
       <button type="button" class="btn-secondary" style="margin-bottom:0.75rem;" onclick="addExerciseField()">+ Ejercicio</button>
       <button type="submit" class="btn-primary">Crear</button>
@@ -681,10 +685,13 @@ async function createRoutine(e) {
     });
   });
   try {
+    const dayVal = document.getElementById('routine-day').value;
     await apiCall('/routines', 'POST', {
-      name: document.getElementById('routine-name').value, ai_generated: false, exercises,
+      name: document.getElementById('routine-name').value, ai_generated: false, day_of_week: dayVal ? parseInt(dayVal) : null, exercises,
     });
-    closeModal(); loadRoutines();
+    closeModal();
+    setRoutineView('week');
+    loadRoutines();
   } catch (err) { alert(err.message); }
 }
 

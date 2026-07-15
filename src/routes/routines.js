@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { name, ai_generated, exercises } = req.body;
+    const { name, ai_generated, exercises, day_of_week } = req.body;
     if (!name) return res.status(400).json({ error: 'Routine name is required' });
 
     const routine = await prisma.routine.create({
@@ -30,6 +30,7 @@ router.post('/', async (req, res) => {
         user_id: req.userId,
         name,
         ai_generated: ai_generated || false,
+        day_of_week: day_of_week || null,
         exercises: exercises
           ? {
               create: exercises.map((ex, i) => ({
