@@ -45,8 +45,7 @@ model MacrosDailyLog {
   fats_g     Int      @default(0)
   created_at DateTime @default(now())
 
-  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  meals Meal[]
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("macros_daily_log")
 }
