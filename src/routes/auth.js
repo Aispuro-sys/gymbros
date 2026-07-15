@@ -116,6 +116,7 @@ router.get('/me', authMiddleware, async (req, res) => {
         id: true,
         username: true,
         email: true,
+        phone: true,
         age: true,
         height_cm: true,
         weight_kg: true,
@@ -137,7 +138,7 @@ router.get('/me', authMiddleware, async (req, res) => {
 
 router.put('/profile', authMiddleware, async (req, res) => {
   try {
-    const { username, age, height_cm, weight_kg, goal, body_type, gender, bio, profile_photo } = req.body;
+    const { username, age, height_cm, weight_kg, goal, body_type, gender, bio, profile_photo, phone } = req.body;
     const updated = await prisma.user.update({
       where: { id: req.userId },
       data: {
@@ -150,11 +151,13 @@ router.put('/profile', authMiddleware, async (req, res) => {
         ...(gender !== undefined && { gender }),
         ...(bio !== undefined && { bio }),
         ...(profile_photo !== undefined && { profile_photo }),
+        ...(phone !== undefined && { phone }),
       },
       select: {
         id: true,
         username: true,
         email: true,
+        phone: true,
         age: true,
         height_cm: true,
         weight_kg: true,

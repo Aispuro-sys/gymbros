@@ -84,4 +84,44 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Generate shopping list from multiple recipes
+router.post('/shopping-list', async (req, res) => {
+  try {
+    const { recipeIds } = req.body;
+    if (!recipeIds || !Array.isArray(recipeIds) || recipeIds.length === 0) {
+      return res.status(400).json({ error: 'recipeIds array is required' });
+    }
+
+    const recipes = await prisma.recipe.findMany({
+      where: { id: { in: recipeIds } },
+    });
+
+    const ingredientMap = {};
+    recipes.forEach((r) => {
+      (r.ingredients || []).forEach((ing) => {
+        const key = ing.trim().toLowerCase();
+        if (!ingredientMap[key]) {
+          ingredientMap[key] = { name: ing.trim(), count: 1, recipes: [r.name] };
+        } else {
+          ingredientMap[key].count++;
+          if (!ingredientMap[key].recipes.includes(r.name)) {
+            ingredientMap[key].recipes.push(r.name);
+          }
+        }
+      });
+    });
+
+    const ingredients = Object.values(ingredientMap).sort((a, b) => a.name.localeCompare(b.name));
+
+    res.json({
+      ingredients,
+      recipeCount: recipes.length,
+      recipeNames: recipes.map((r) => r.name),
+    });
+  } catch (err) {
+    console.error('Shopping list error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

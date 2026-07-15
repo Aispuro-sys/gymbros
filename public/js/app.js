@@ -466,7 +466,7 @@ async function generateNutritionPlan() {
         `;
       });
       html += `</div>`;
-      html += `<div style="margin-top:0.75rem;"><button class="btn-primary" style="width:auto; padding:8px 16px;" onclick="addAllAIMeals()">Agregar todas las comidas</button></div>`;
+      html += `<div style="margin-top:0.75rem; display:flex; gap:8px; flex-wrap:wrap;"><button class="btn-primary" style="width:auto; padding:8px 16px;" onclick="addAllAIMeals()">Agregar todas las comidas</button><button class="btn-secondary" style="width:auto; padding:8px 16px;" onclick="openShoppingListModal()">🛒 Crear lista de supermercado</button></div>`;
       window._aiNutritionPlan = p;
     }
     if (p.notes) html += `<div class="ai-notes"><strong>Coach IA:</strong> ${p.notes}</div>`;
@@ -1489,6 +1489,7 @@ function loadProfile() {
   const u = currentUser;
   document.getElementById('prof-username').value = u.username || '';
   document.getElementById('prof-email').value = u.email || '';
+  document.getElementById('prof-phone').value = u.phone || '';
   document.getElementById('prof-age').value = u.age || '';
   document.getElementById('prof-height').value = u.height_cm || '';
   document.getElementById('prof-weight').value = u.weight_kg || '';
@@ -1575,6 +1576,7 @@ async function saveProfile(e) {
   try {
     const data = await apiCall('/auth/profile', 'PUT', {
       username: document.getElementById('prof-username').value,
+      phone: document.getElementById('prof-phone').value || undefined,
       age: parseInt(document.getElementById('prof-age').value) || undefined,
       height_cm: parseFloat(document.getElementById('prof-height').value) || undefined,
       weight_kg: parseFloat(document.getElementById('prof-weight').value) || undefined,
@@ -1666,6 +1668,7 @@ async function loadRecipeDetail(id) {
         </ol>
       </div>
       <button class="btn-primary" onclick="addRecipeToMeals('${r.id}')">Agregar a comidas de hoy</button>
+      <button class="btn-secondary" style="margin-top:0.5rem;" onclick="addRecipeToShoppingList('${r.id}')">🛒 Agregar a lista de supermercado</button>
     `;
   } catch (err) { document.getElementById('recipe-detail-view').innerHTML = `<div class="auth-error show">${err.message}</div>`; }
 }
@@ -1771,6 +1774,223 @@ async function saveRecipe(e) {
     closeModal();
     loadRecipes();
   } catch (err) { alert(err.message); }
+}
+
+// ===== Shopping List =====
+let shoppingListItems = [];
+let shoppingListRecipeIds = [];
+
+function addRecipeToShoppingList(recipeId) {
+  if (!shoppingListRecipeIds.includes(recipeId)) {
+    shoppingListRecipeIds.push(recipeId);
+  }
+  openShoppingListModal();
+}
+
+async function openShoppingListModal() {
+  showModal(`
+    <div class="modal-header">
+      <h2>🛒 Lista de Supermercado</h2>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div id="shopping-list-view">${loadingHtml()}</div>
+  `);
+  await renderShoppingList();
+}
+
+async function renderShoppingList() {
+  const view = document.getElementById('shopping-list-view');
+  if (!view) return;
+
+  if (shoppingListRecipeIds.length === 0) {
+    view.innerHTML = `
+      <p style="color:var(--text-2); margin-bottom:1rem;">No hay recetas en tu lista. Agrega recetas desde la vista de detalle o usa los botones below.</p>
+      <div style="margin-bottom:1rem;">
+        <strong>Recetas sugeridas para tu objetivo:</strong>
+        <div id="shopping-suggested-recipes" style="margin-top:0.5rem;">${loadingHtml()}</div>
+      </div>
+      <button class="btn-primary" onclick="generateShoppingListFromAI()" style="width:auto; padding:8px 16px;">🤖 Generar lista con IA desde mi plan</button>
+    `;
+    try {
+      const data = await apiCall('/recipes?limit=20');
+      const suggested = (data.recipes || []).slice(0, 8);
+      const sugEl = document.getElementById('shopping-suggested-recipes');
+      if (sugEl) {
+        sugEl.innerHTML = suggested.map((r) => `
+          <div class="list-item" style="cursor:pointer;" onclick="addRecipeToShoppingList('${r.id}')">
+            <div>
+              <div class="list-item-name">${r.name}</div>
+              <div class="list-item-meta">${r.calories} cal · ${r.protein_g}g prot</div>
+            </div>
+            <span class="list-item-badge">+ Agregar</span>
+          </div>
+        `).join('');
+      }
+    } catch (err) {
+      const sugEl = document.getElementById('shopping-suggested-recipes');
+      if (sugEl) sugEl.innerHTML = `<div class="empty-state-text">${err.message}</div>`;
+    }
+    return;
+  }
+
+  try {
+    const data = await apiCall('/recipes/shopping-list', 'POST', { recipeIds: shoppingListRecipeIds });
+    shoppingListItems = data.ingredients;
+
+    view.innerHTML = `
+      <div style="margin-bottom:1rem;">
+        <strong>${data.recipeCount} receta(s) en la lista:</strong>
+        <div style="color:var(--text-2); font-size:0.85rem; margin-top:4px;">${data.recipeNames.join(', ')}</div>
+      </div>
+      <div style="margin-bottom:1rem; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="clearShoppingList()">Limpiar lista</button>
+        <button class="btn-primary" style="width:auto; padding:8px 14px;" onclick="downloadShoppingListPDF()">📄 Descargar PDF</button>
+        <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="sendShoppingListWhatsApp()">📱 Enviar por WhatsApp</button>
+      </div>
+      <div id="shopping-list-items">
+        ${shoppingListItems.map((item, idx) => `
+          <div class="list-item">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="checkbox" id="shop-check-${idx}" ${item.checked ? 'checked' : ''} onchange="toggleShoppingItem(${idx})" style="width:18px; height:18px;" />
+              <div>
+                <div class="list-item-name" style="${item.checked ? 'text-decoration:line-through; opacity:0.5;' : ''}">${item.name}</div>
+                ${item.count > 1 ? `<div class="list-item-meta">En ${item.count} recetas</div>` : ''}
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (err) {
+    view.innerHTML = `<div class="auth-error show">${err.message}</div>`;
+  }
+}
+
+function toggleShoppingItem(idx) {
+  if (!shoppingListItems[idx]) return;
+  shoppingListItems[idx].checked = document.getElementById(`shop-check-${idx}`).checked;
+  const nameEl = document.querySelector(`#shop-check-${idx}`).parentElement.querySelector('.list-item-name');
+  if (nameEl) {
+    nameEl.style.textDecoration = shoppingListItems[idx].checked ? 'line-through' : '';
+    nameEl.style.opacity = shoppingListItems[idx].checked ? '0.5' : '';
+  }
+}
+
+function clearShoppingList() {
+  shoppingListRecipeIds = [];
+  shoppingListItems = [];
+  renderShoppingList();
+}
+
+async function generateShoppingListFromAI() {
+  try {
+    const data = await apiCall('/ai/recommend-recipes', 'POST', {});
+    if (data.recipes && data.recipes.length > 0) {
+      shoppingListRecipeIds = data.recipes.map((r) => r.id);
+      renderShoppingList();
+    } else {
+      alert('No hay recetas recomendadas disponibles');
+    }
+  } catch (err) { alert(err.message); }
+}
+
+function downloadShoppingListPDF() {
+  if (shoppingListItems.length === 0) { alert('La lista está vacía'); return; }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  // Header with Talos branding
+  doc.setFillColor(25, 118, 210);
+  doc.rect(0, 0, 210, 35, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TALOS FORGE', 105, 18, { align: 'center' });
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Lista de Supermercado', 105, 27, { align: 'center' });
+
+  // Date
+  doc.setTextColor(80, 80, 80);
+  doc.setFontSize(10);
+  const today = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  doc.text(`Fecha: ${today}`, 20, 45);
+
+  // User info
+  if (currentUser) {
+    doc.text(`Usuario: ${currentUser.username}`, 20, 52);
+  }
+
+  // Separator line
+  doc.setDrawColor(200, 200, 200);
+  doc.line(20, 57, 190, 57);
+
+  // Ingredients list
+  doc.setFontSize(13);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(40, 40, 40);
+  doc.text('Ingredientes', 20, 67);
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+
+  let y = 77;
+  shoppingListItems.forEach((item, idx) => {
+    if (y > 270) {
+      doc.addPage();
+      y = 20;
+    }
+
+    const checkbox = item.checked ? '[x]' : '[ ]';
+    const text = `${checkbox}  ${item.name}`;
+    doc.text(text, 22, y);
+
+    if (item.count > 1) {
+      doc.setFontSize(9);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`(en ${item.count} recetas)`, 120, y);
+      doc.setFontSize(11);
+      doc.setTextColor(40, 40, 40);
+    }
+
+    y += 7;
+  });
+
+  // Footer
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Talos Forge - Your Progress', 105, 290, { align: 'center' });
+    doc.text(`Pagina ${i} de ${pageCount}`, 190, 290, { align: 'right' });
+  }
+
+  doc.save('talos-forge-lista-supermercado.pdf');
+}
+
+function sendShoppingListWhatsApp() {
+  if (shoppingListItems.length === 0) { alert('La lista está vacía'); return; }
+
+  let message = '*🛒 Lista de Supermercado - Talos Forge*\n\n';
+  message += `Fecha: ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}\n`;
+  if (currentUser) message += `Usuario: ${currentUser.username}\n`;
+  message += '\n*Ingredientes:*\n';
+
+  shoppingListItems.forEach((item) => {
+    const check = item.checked ? '✅' : '⬜';
+    message += `${check} ${item.name}`;
+    if (item.count > 1) message += ` _(en ${item.count} recetas)_`;
+    message += '\n';
+  });
+
+  message += '\n_Generado con Talos Forge - Your Progress_';
+
+  const encoded = encodeURIComponent(message);
+  const phone = currentUser?.phone?.replace(/[^0-9]/g, '') || '';
+  const url = phone ? `https://wa.me/${phone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+  window.open(url, '_blank');
 }
 
 // ===== Community =====

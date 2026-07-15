@@ -421,6 +421,7 @@
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="btn-secondary" style="width:auto; padding:10px 16px;" onclick="openFoodCamera()">Foto Comida</button>
             <button class="btn-secondary" style="width:auto; padding:10px 16px;" onclick="loadMealRecommendations()">Comidas IA</button>
+            <button class="btn-secondary" style="width:auto; padding:10px 16px;" onclick="openShoppingListModal()">🛒 Lista de super</button>
             <button class="btn-primary" style="width:auto; padding:10px 16px;" onclick="openMacrosModal()">+ Registrar</button>
           </div>
         </div>
@@ -496,6 +497,7 @@
             <form onsubmit="saveProfile(event)">
               <div class="form-group"><label>Usuario</label><input type="text" class="form-input" id="prof-username" /></div>
               <div class="form-group"><label>Correo</label><input type="email" class="form-input" id="prof-email" disabled style="opacity:0.5;" /></div>
+              <div class="form-group"><label>Teléfono (WhatsApp)</label><input type="tel" class="form-input" id="prof-phone" placeholder="+52 614 123 4567" /></div>
               <div class="form-row">
                 <div class="form-group"><label>Edad</label><input type="number" class="form-input" id="prof-age" min="14" max="100" /></div>
                 <div class="form-group"><label>Altura (cm)</label><input type="number" class="form-input" id="prof-height" step="0.1" /></div>
@@ -554,6 +556,7 @@
           </div>
           <div style="display:flex; gap:8px;">
             <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="openRecipeModal()">+ Receta</button>
+            <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="openShoppingListModal()">🛒 Lista de super</button>
             <button class="btn-primary" style="width:auto; padding:8px 14px;" onclick="recommendRecipes()">
               <span class="badge-ai list-item-badge" style="margin-right:4px;">IA</span> Recomendar
             </button>
@@ -610,6 +613,7 @@
     <div class="modal" id="modal-content"></div>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>
