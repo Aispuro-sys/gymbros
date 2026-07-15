@@ -178,3 +178,45 @@ ALTER TABLE "team_posts" ADD CONSTRAINT "team_posts_team_id_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "team_posts" ADD CONSTRAINT "team_posts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- CreateTable
+CREATE TABLE "exercise_logs" (
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "exercise_id" TEXT NOT NULL,
+    "routine_id" TEXT NOT NULL,
+    "completed" BOOLEAN NOT NULL DEFAULT true,
+    "date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "exercise_logs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "meals" (
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "meal_type" TEXT NOT NULL DEFAULT 'SNACK',
+    "calories" INTEGER NOT NULL DEFAULT 0,
+    "protein_g" INTEGER NOT NULL DEFAULT 0,
+    "carbs_g" INTEGER NOT NULL DEFAULT 0,
+    "fats_g" INTEGER NOT NULL DEFAULT 0,
+    "photo_url" TEXT,
+    "confirmed" BOOLEAN NOT NULL DEFAULT false,
+    "date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "meals_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "exercise_logs_user_id_exercise_id_date_key" ON "exercise_logs"("user_id", "exercise_id", "date");
+
+-- AddForeignKey
+ALTER TABLE "exercise_logs" ADD CONSTRAINT "exercise_logs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "exercise_logs" ADD CONSTRAINT "exercise_logs_exercise_id_fkey" FOREIGN KEY ("exercise_id") REFERENCES "exercises"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "meals" ADD CONSTRAINT "meals_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

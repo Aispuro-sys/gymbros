@@ -99,4 +99,76 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Toggle exercise completion
+router.post('/:routineId/exercises/:exerciseId/toggle', async (req, res) => {
+  try {
+    const routine = await prisma.routine.findUnique({ where: { id: req.params.routineId } });
+    if (!routine || routine.user_id !== req.userId) {
+      return res.status(404).json({ error: 'Routine not found' });
+    }
+
+    const exercise = await prisma.exercise.findUnique({ where: { id: req.params.exerciseId } });
+    if (!exercise || exercise.routine_id !== routine.id) {
+      return res.status(404).json({ error: 'Exercise not found' });
+    }
+
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+
+    const existing = await prisma.exerciseLog.findFirst({
+      where: {
+        user_id: req.userId,
+        exercise_id: exercise.id,
+        date: { gte: startOfDay, lt: endOfDay },
+      },
+    });
+
+    if (existing) {
+      const updated = await prisma.exerciseLog.update({
+        where: { id: existing.id },
+        data: { completed: !existing.completed },
+      });
+      res.json({ log: updated });
+    } else {
+      const log = await prisma.exerciseLog.create({
+        data: {
+          user_id: req.userId,
+          exercise_id: exercise.id,
+          routine_id: routine.id,
+          completed: true,
+        },
+      });
+      res.status(201).json({ log });
+    }
+  } catch (err) {
+    console.error('Toggle exercise error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get completed exercises for today
+router.get('/completed-today', async (req, res) => {
+  try {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+
+    const logs = await prisma.exerciseLog.findMany({
+      where: {
+        user_id: req.userId,
+        date: { gte: startOfDay, lt: endOfDay },
+        completed: true,
+      },
+      select: { exercise_id: true, routine_id: true },
+    });
+    res.json({ completed: logs.map((l) => l.exercise_id) });
+  } catch (err) {
+    console.error('Get completed error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

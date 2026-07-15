@@ -161,12 +161,15 @@ async function checkAIStatus() {
 }
 
 // ===== Exercise GIF helper =====
+let completedExercises = [];
+
 function exerciseGifHtml(ex) {
   const gif = ex.gif_url ? `/exercises-dataset/${ex.gif_url}` : null;
   const img = ex.image ? `/exercises-dataset/${ex.image}` : null;
   const mediaSrc = gif || img;
+  const isDone = completedExercises.includes(ex.id);
   return `
-    <div class="exercise-with-gif">
+    <div class="exercise-with-gif ${isDone ? 'exercise-done' : ''}">
       ${mediaSrc ? `<img src="${mediaSrc}" alt="${ex.name}" class="exercise-gif" loading="lazy" />` : ''}
       <div class="exercise-info">
         <div class="exercise-name">${ex.name}</div>
@@ -176,8 +179,32 @@ function exerciseGifHtml(ex) {
           <span>${ex.rest_seconds}s descanso</span>
         </div>
       </div>
+      <label class="exercise-check" onclick="toggleExercise('${ex.routine_id || ''}', '${ex.id}', event)">
+        <input type="checkbox" ${isDone ? 'checked' : ''} />
+        <span class="exercise-check-mark"></span>
+      </label>
     </div>
   `;
+}
+
+async function loadCompletedExercises() {
+  try {
+    const data = await apiCall('/routines/completed-today');
+    completedExercises = data.completed || [];
+  } catch (err) { console.error('Completed exercises error:', err); }
+}
+
+async function toggleExercise(routineId, exerciseId, event) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  try {
+    await apiCall(`/routines/${routineId}/exercises/${exerciseId}/toggle`, 'POST');
+    if (completedExercises.includes(exerciseId)) {
+      completedExercises = completedExercises.filter((id) => id !== exerciseId);
+    } else {
+      completedExercises.push(exerciseId);
+    }
+    loadRoutines();
+  } catch (err) { alert(err.message); }
 }
 
 // ===== Overview =====
@@ -362,6 +389,7 @@ async function loadRoutines() {
   try {
     const data = await apiCall('/ai/routines-with-gifs');
     allRoutinesWithGifs = data.routines;
+    await loadCompletedExercises();
     renderRoutinesList();
     if (routineView === 'week') renderWeeklyCalendar();
     if (routineView === 'month') renderMonthlyCalendar();
@@ -374,7 +402,11 @@ function renderRoutinesList() {
     list.innerHTML = emptyState('Sin rutinas. Usa el IA Coach para generar un plan semanal.');
     return;
   }
-  list.innerHTML = allRoutinesWithGifs.map((r) => `
+  list.innerHTML = allRoutinesWithGifs.map((r) => {
+    const doneCount = r.exercises.filter((ex) => completedExercises.includes(ex.id)).length;
+    const totalCount = r.exercises.length;
+    const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+    return `
     <div class="routine-card">
       <div class="routine-header">
         <div>
@@ -385,9 +417,11 @@ function renderRoutinesList() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         </button>
       </div>
+      ${totalCount > 0 ? `<div class="routine-progress"><div class="routine-progress-bar" style="width:${pct}%"></div><span class="routine-progress-text">${doneCount}/${totalCount} completados</span></div>` : ''}
       ${r.exercises.map((ex) => exerciseGifHtml(ex)).join('')}
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -658,22 +692,106 @@ function viewExercise(id) {
   }).catch((err) => alert(err.message));
 }
 
-// ===== Macros =====
+// ===== Macros & Meals =====
+const MEAL_TYPE_LABELS = { BREAKFAST: 'Desayuno', LUNCH: 'Comida', DINNER: 'Cena', SNACK: 'Snack', POST_WORKOUT: 'Post-entreno' };
+
 async function loadMacros() {
   try {
-    const data = await apiCall('/macros');
+    const [macrosData, mealsData] = await Promise.all([
+      apiCall('/macros'),
+      apiCall('/meals'),
+    ]);
+
     const list = document.getElementById('macros-list');
-    if (data.logs.length === 0) {
-      list.innerHTML = emptyState('Sin registros. Registra tu primer día.');
-      return;
+    if (macrosData.logs.length === 0) {
+      list.innerHTML = emptyState('Sin registros. Registra tu primer dia.');
+    } else {
+      list.innerHTML = macrosData.logs.map((l) => `
+        <div class="list-item"><div>
+          <div class="list-item-name">${new Date(l.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</div>
+          <div class="list-item-meta">${l.calories} kcal · P:${l.protein_g}g · C:${l.carbs_g}g · G:${l.fats_g}g</div>
+        </div></div>
+      `).join('');
     }
-    list.innerHTML = data.logs.map((l) => `
-      <div class="list-item"><div>
-        <div class="list-item-name">${new Date(l.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</div>
-        <div class="list-item-meta">${l.calories} kcal · P:${l.protein_g}g · C:${l.carbs_g}g · G:${l.fats_g}g</div>
-      </div></div>
-    `).join('');
+
+    renderMeals(mealsData);
+    renderDailySummary(mealsData);
   } catch (err) { console.error('Macros error:', err); }
+}
+
+function renderDailySummary(mealsData) {
+  const summary = document.getElementById('daily-calories-summary');
+  if (!summary) return;
+  const t = mealsData.totals;
+  const confirmedCount = mealsData.meals.filter((m) => m.confirmed).length;
+  summary.innerHTML = `
+    <div class="card">
+      <div class="card-header"><div class="card-title">Resumen de hoy</div></div>
+      <div class="calories-summary-grid">
+        <div class="calories-stat"><div class="calories-stat-val">${t.calories}</div><div class="calories-stat-label">kcal</div></div>
+        <div class="calories-stat"><div class="calories-stat-val">${t.protein_g}g</div><div class="calories-stat-label">Proteina</div></div>
+        <div class="calories-stat"><div class="calories-stat-val">${t.carbs_g}g</div><div class="calories-stat-label">Carbos</div></div>
+        <div class="calories-stat"><div class="calories-stat-val">${t.fats_g}g</div><div class="calories-stat-label">Grasas</div></div>
+      </div>
+      <div class="calories-meals-count">${mealsData.meals.length} comidas · ${confirmedCount} confirmadas con foto</div>
+    </div>
+  `;
+}
+
+function renderMeals(mealsData) {
+  const list = document.getElementById('meals-list');
+  if (!list) return;
+  if (mealsData.meals.length === 0) {
+    list.innerHTML = emptyState('Sin comidas registradas hoy. Usa Foto Comida para agregar.');
+    return;
+  }
+  list.innerHTML = mealsData.meals.map((m) => `
+    <div class="meal-item">
+      <div class="meal-item-info">
+        <div class="meal-item-name">${m.name}</div>
+        <div class="meal-item-meta">${MEAL_TYPE_LABELS[m.meal_type] || m.meal_type} · ${m.calories} kcal · P:${m.protein_g}g C:${m.carbs_g}g G:${m.fats_g}g</div>
+        ${m.confirmed ? '<span class="meal-confirmed-badge">Confirmada</span>' : '<span class="meal-unconfirmed-badge">Sin confirmar</span>'}
+      </div>
+      <div class="meal-item-actions">
+        ${m.photo_url ? `<img src="${m.photo_url}" class="meal-thumb" onclick="viewMealPhoto('${m.photo_url}')" />` : `<button class="btn-secondary" style="width:auto; padding:6px 10px; font-size:0.7rem;" onclick="confirmMealPhoto('${m.id}')">Confirmar</button>`}
+        <button class="logout-btn" onclick="deleteMeal('${m.id}')" title="Eliminar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function viewMealPhoto(url) {
+  showModal(`<div style="text-align:center;"><img src="${url}" style="max-width:100%; border-radius:8px;" /></div>`);
+}
+
+async function confirmMealPhoto(mealId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.capture = 'environment';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        await apiCall(`/meals/${mealId}/confirm`, 'PUT', { photo_url: ev.target.result });
+        loadMacros();
+      } catch (err) { alert(err.message); }
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+async function deleteMeal(id) {
+  if (!confirm('Eliminar esta comida?')) return;
+  try {
+    await apiCall(`/meals/${id}`, 'DELETE');
+    loadMacros();
+  } catch (err) { alert(err.message); }
 }
 
 function openMacrosModal() {
@@ -1040,25 +1158,27 @@ async function handleFoodPhoto(event) {
       const data = await apiCall('/ai/analyze-food', 'POST', { image: dataUrl });
       const a = data.analysis;
       const confidenceColor = a.confidence === 'high' ? 'var(--text)' : a.confidence === 'medium' ? 'var(--text-2)' : 'var(--danger)';
+      let extraHtml = '';
+      if (a.fiber_g != null && a.fiber_g > 0) extraHtml += `<div class="analysis-extra">Fibra: ${a.fiber_g}g</div>`;
+      if (a.sugar_g != null && a.sugar_g > 0) extraHtml += `<div class="analysis-extra">Azucar: ${a.sugar_g}g</div>`;
+      if (a.sodium_mg != null && a.sodium_mg > 0) extraHtml += `<div class="analysis-extra">Sodio: ${a.sodium_mg}mg</div>`;
       document.getElementById('food-analysis-result').innerHTML = `
         <div class="analysis-result-card">
           <div class="analysis-header">
             <div class="analysis-name">${a.food_name}</div>
             <span class="analysis-badge" style="color:${confidenceColor}; border-color:${confidenceColor};">${a.confidence || 'low'}</span>
           </div>
-          <div class="analysis-portion">${a.estimated_portion || ''}</div>
+          ${a.estimated_portion && a.estimated_portion !== 'N/A' ? `<div class="analysis-portion">${a.estimated_portion}</div>` : ''}
           <div class="analysis-macros-grid">
             <div class="macro-pill"><div class="macro-pill-val">${a.calories}</div><div class="macro-pill-label">kcal</div></div>
             <div class="macro-pill"><div class="macro-pill-val">${a.protein_g}g</div><div class="macro-pill-label">Proteina</div></div>
             <div class="macro-pill"><div class="macro-pill-val">${a.carbs_g}g</div><div class="macro-pill-label">Carbos</div></div>
             <div class="macro-pill"><div class="macro-pill-val">${a.fats_g}g</div><div class="macro-pill-label">Grasas</div></div>
           </div>
-          ${a.fiber_g != null ? `<div class="analysis-extra">Fibra: ${a.fiber_g}g</div>` : ''}
-          ${a.sugar_g != null ? `<div class="analysis-extra">Azucar: ${a.sugar_g}g</div>` : ''}
-          ${a.sodium_mg != null ? `<div class="analysis-extra">Sodio: ${a.sodium_mg}mg</div>` : ''}
-          ${a.notes ? `<div class="analysis-notes">${a.notes}</div>` : ''}
+          ${extraHtml}
+          ${a.notes && a.notes !== 'N/A' ? `<div class="analysis-notes">${a.notes}</div>` : ''}
           <div style="display:flex; gap:8px; margin-top:0.75rem;">
-            <button class="btn-primary" style="width:auto; padding:8px 16px;" onclick="saveFoodAsMacros(${a.calories}, ${a.protein_g}, ${a.carbs_g}, ${a.fats_g})">Registrar macros</button>
+            <button class="btn-primary" style="width:auto; padding:8px 16px;" onclick="saveFoodAsMacros(${a.calories}, ${a.protein_g}, ${a.carbs_g}, ${a.fats_g}, '${(a.food_name || 'Comida').replace(/'/g, "\\'")}', '${dataUrl}')">Registrar comida</button>
             <button class="btn-secondary" style="width:auto; padding:8px 16px;" onclick="openFoodCamera()">Otra foto</button>
           </div>
         </div>
@@ -1070,10 +1190,21 @@ async function handleFoodPhoto(event) {
   reader.readAsDataURL(file);
 }
 
-function saveFoodAsMacros(cal, protein, carbs, fats) {
-  const today = new Date().toISOString().split('T')[0];
-  apiCall('/macros', 'POST', { date: today, calories: cal, protein_g: protein, carbs_g: carbs, fats_g: fats })
-    .then(() => { alert('Macros registrados'); document.getElementById('food-photo-section').style.display = 'none'; loadMacros(); })
+function saveFoodAsMacros(cal, protein, carbs, fats, foodName, photoUrl) {
+  const name = foodName || 'Comida';
+  apiCall('/meals', 'POST', {
+    name,
+    meal_type: 'SNACK',
+    calories: cal,
+    protein_g: protein,
+    carbs_g: carbs,
+    fats_g: fats,
+    photo_url: photoUrl || null,
+  })
+    .then(() => {
+      document.getElementById('food-photo-section').style.display = 'none';
+      loadMacros();
+    })
     .catch((err) => alert(err.message));
 }
 

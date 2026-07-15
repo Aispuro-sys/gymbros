@@ -1730,3 +1730,187 @@ select.form-input {
 @media (max-width: 768px) {
   .feed-post-content { padding-left: 0; }
 }
+
+/* ===== Exercise Completion ===== */
+.exercise-with-gif {
+  position: relative;
+}
+
+.exercise-done {
+  opacity: 0.5;
+}
+
+.exercise-done .exercise-gif {
+  filter: grayscale(100%);
+}
+
+.exercise-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.exercise-check input {
+  display: none;
+}
+
+.exercise-check-mark {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--border-2);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.exercise-check input:checked + .exercise-check-mark {
+  background: var(--text);
+  border-color: var(--text);
+}
+
+.exercise-check input:checked + .exercise-check-mark::after {
+  content: '';
+  width: 6px;
+  height: 11px;
+  border: solid var(--bg);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  margin-top: -2px;
+}
+
+/* ===== Routine Progress ===== */
+.routine-progress {
+  position: relative;
+  height: 24px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.routine-progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--text);
+  opacity: 0.15;
+  transition: width 0.3s ease;
+}
+
+.routine-progress-text {
+  position: relative;
+  font-size: 0.7rem;
+  color: var(--text-2);
+  line-height: 24px;
+  text-align: center;
+  display: block;
+  z-index: 1;
+}
+
+/* ===== Meals ===== */
+.meal-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+}
+
+.meal-item:last-child { border-bottom: none; }
+
+.meal-item-info { flex: 1; min-width: 0; }
+
+.meal-item-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.meal-item-meta {
+  font-size: 0.72rem;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+
+.meal-confirmed-badge {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface-3);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+.meal-unconfirmed-badge {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  padding: 1px 7px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+.meal-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.meal-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+
+/* ===== Daily Calories Summary ===== */
+.calories-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.calories-stat {
+  text-align: center;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 0.25rem;
+}
+
+.calories-stat-val {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.calories-stat-label {
+  font-size: 0.6rem;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.calories-meals-count {
+  font-size: 0.72rem;
+  color: var(--text-3);
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .calories-summary-grid { grid-template-columns: repeat(2, 1fr); }
+}

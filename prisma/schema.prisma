@@ -28,6 +28,8 @@ model User {
   owned_teams      Team[]
   shared_routines  TeamRoutine[]
   team_posts       TeamPost[]
+  exercise_logs    ExerciseLog[]
+  meals            Meal[]
 
   @@map("users")
 }
@@ -42,9 +44,29 @@ model MacrosDailyLog {
   fats_g     Int      @default(0)
   created_at DateTime @default(now())
 
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  meals Meal[]
 
   @@map("macros_daily_log")
+}
+
+model Meal {
+  id         String   @id @default(uuid())
+  user_id    String
+  name       String
+  meal_type  String   @default("SNACK")
+  calories   Int      @default(0)
+  protein_g  Int      @default(0)
+  carbs_g    Int      @default(0)
+  fats_g     Int      @default(0)
+  photo_url  String?
+  confirmed  Boolean  @default(false)
+  date       DateTime @default(now())
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("meals")
 }
 
 model Routine {
@@ -76,8 +98,24 @@ model Exercise {
   created_at         DateTime @default(now())
 
   routine Routine @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+  logs       ExerciseLog[]
 
   @@map("exercises")
+}
+
+model ExerciseLog {
+  id          String   @id @default(uuid())
+  user_id     String
+  exercise_id String
+  routine_id  String
+  completed   Boolean  @default(true)
+  date        DateTime @default(now())
+
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exercise_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, exercise_id, date])
+  @@map("exercise_logs")
 }
 
 model ProgressPhoto {
