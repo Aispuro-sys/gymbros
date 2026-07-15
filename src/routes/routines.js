@@ -172,4 +172,41 @@ router.get('/completed-today', async (req, res) => {
   }
 });
 
+// Get weekly progress history
+router.get('/progress', async (req, res) => {
+  try {
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - 6);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const logs = await prisma.exerciseLog.findMany({
+      where: {
+        user_id: req.userId,
+        date: { gte: startOfWeek },
+        completed: true,
+      },
+      include: { exercise: { select: { name: true } }, routine: { select: { name: true } } },
+      orderBy: { date: 'desc' },
+    });
+
+    const byDay = {};
+    logs.forEach((log) => {
+      const dayKey = new Date(log.date).toLocaleDateString('en-CA');
+      if (!byDay[dayKey]) byDay[dayKey] = { date: dayKey, count: 0, exercises: [] };
+      byDay[dayKey].count++;
+      byDay[dayKey].exercises.push(log.exercise?.name || 'Ejercicio');
+    });
+
+    const days = Object.values(byDay).sort((a, b) => b.date.localeCompare(a.date));
+    const totalCompleted = logs.length;
+    const activeDays = days.length;
+
+    res.json({ totalCompleted, activeDays, days });
+  } catch (err) {
+    console.error('Progress error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

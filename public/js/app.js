@@ -14,12 +14,20 @@ let pollingIntervals = {};
 function initTheme() {
   const saved = localStorage.getItem('talos_forge_theme') || 'dark';
   document.documentElement.setAttribute('data-theme', saved);
+  updateFavicon(saved);
 }
 function toggleTheme() {
   const current = document.documentElement.getAttribute('data-theme') || 'dark';
   const next = current === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('talos_forge_theme', next);
+  updateFavicon(next);
+}
+function updateFavicon(theme) {
+  const favicon = document.querySelector('link[rel="icon"]');
+  if (favicon) {
+    favicon.href = theme === 'dark' ? '/assets/images/Logo Talos Wite.png' : '/assets/images/Logo Talos Black.png';
+  }
 }
 initTheme();
 
@@ -186,6 +194,9 @@ function exerciseGifHtml(ex) {
   const mediaSrc = gif || img;
   const isDone = completedExercises.includes(ex.id);
   const clickable = ex.exercise_dataset_id ? `onclick="viewExercise('${ex.exercise_dataset_id}')" style="cursor:pointer;"` : '';
+  const altHtml = ex.alternatives && ex.alternatives.length > 0
+    ? `<div class="exercise-alternatives"><span class="exercise-alt-label">Si no puedes hacerlo:</span> ${ex.alternatives.map((alt) => `<button class="exercise-alt-btn" onclick="event.stopPropagation(); viewExercise('${alt.exercise_id}')">${alt.name}</button>`).join('')}</div>`
+    : '';
   return `
     <div class="exercise-with-gif ${isDone ? 'exercise-done' : ''}" ${clickable}>
       ${mediaSrc ? `<img src="${mediaSrc}" alt="${ex.name}" class="exercise-gif" loading="lazy" />` : ''}
@@ -197,6 +208,7 @@ function exerciseGifHtml(ex) {
           <span>${ex.rest_seconds}s descanso</span>
         </div>
         ${ex.exercise_dataset_id ? '<div class="exercise-instruction-hint">Toca para ver instrucciones</div>' : ''}
+        ${altHtml}
       </div>
       <label class="exercise-check" onclick="toggleExercise('${ex.routine_id || ''}', '${ex.id}', event)">
         <input type="checkbox" ${isDone ? 'checked' : ''} />
@@ -230,10 +242,11 @@ async function toggleExercise(routineId, exerciseId, event) {
 // ===== Overview =====
 async function loadOverview() {
   try {
-    const [routinesData, macrosData, suppData] = await Promise.all([
+    const [routinesData, macrosData, suppData, progressData] = await Promise.all([
       apiCall('/ai/routines-with-gifs'),
       apiCall(`/macros?date=${new Date().toISOString().split('T')[0]}`),
       apiCall('/supplements'),
+      apiCall('/routines/progress'),
     ]);
     const u = currentUser;
     const todayLog = macrosData.logs[0];
@@ -280,6 +293,24 @@ async function loadOverview() {
       `).join('');
     } else {
       document.getElementById('overview-supplements').innerHTML = emptyState('Sin suplementos registrados');
+    }
+
+    const progEl = document.getElementById('overview-progress');
+    if (progEl && progressData) {
+      if (progressData.totalCompleted === 0) {
+        progEl.innerHTML = emptyState('Marca ejercicios completados en tus rutinas para ver tu progreso aquí.');
+      } else {
+        progEl.innerHTML = `
+          <div class="exercise-row"><span class="exercise-name">Ejercicios completados (7 días)</span><span class="exercise-stat">${progressData.totalCompleted}</span></div>
+          <div class="exercise-row"><span class="exercise-name">Días activos</span><span class="exercise-stat">${progressData.activeDays}/7</span></div>
+          ${(progressData.days || []).map((d) => `
+            <div class="list-item"><div>
+              <div class="list-item-name">${new Date(d.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</div>
+              <div class="list-item-meta">${d.count} ejercicios: ${d.exercises.slice(0, 3).join(', ')}${d.exercises.length > 3 ? '...' : ''}</div>
+            </div></div>
+          `).join('')}
+        `;
+      }
     }
   } catch (err) { console.error('Overview error:', err); }
 }
@@ -1415,6 +1446,26 @@ function loadProfile() {
   document.getElementById('prof-weight').value = u.weight_kg || '';
   document.getElementById('prof-goal').value = u.goal || 'MAINTENANCE';
 
+  const placeholder = document.getElementById('profile-photo-placeholder');
+  const preview = document.getElementById('profile-photo-preview');
+  if (u.profile_photo) {
+    preview.src = u.profile_photo;
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+  } else {
+    preview.style.display = 'none';
+    placeholder.style.display = 'block';
+  }
+
+  const sidebarAvatar = document.getElementById('user-avatar');
+  if (sidebarAvatar) {
+    if (u.profile_photo) {
+      sidebarAvatar.innerHTML = `<img src="${u.profile_photo}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;" />`;
+    } else {
+      sidebarAvatar.textContent = (u.username || 'U').charAt(0).toUpperCase();
+    }
+  }
+
   const userGender = u.gender || 'M';
   selectGender('prof', userGender);
 
@@ -1441,6 +1492,34 @@ function loadProfile() {
 
 function bodyTypeLabel(t) {
   return { ECTOMORPH: 'Ectomorfo', MESOMORPH: 'Mesomorfo', ENDOMORPH: 'Endomorfo' }[t] || 'No definido';
+}
+
+function handleProfilePhoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { alert('La foto no puede pesar más de 5MB'); return; }
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const photoData = e.target.result;
+    const preview = document.getElementById('profile-photo-preview');
+    const placeholder = document.getElementById('profile-photo-placeholder');
+    preview.src = photoData;
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+    try {
+      const data = await apiCall('/community/profile-photo', 'PUT', { photo: photoData });
+      currentUser.profile_photo = data.user.profile_photo;
+      const sidebarAvatar = document.getElementById('user-avatar');
+      if (sidebarAvatar) {
+        sidebarAvatar.innerHTML = `<img src="${data.user.profile_photo}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;" />`;
+      }
+    } catch (err) {
+      preview.style.display = 'none';
+      placeholder.style.display = 'block';
+      alert(err.message);
+    }
+  };
+  reader.readAsDataURL(file);
 }
 
 async function saveProfile(e) {
@@ -1695,35 +1774,35 @@ function renderCommunityPost(p) {
   }
 
   const reactions = (p.reactions || []);
-  const reactionEmojis = ['🔥', '💪', '❤️', '👏', '🚀'];
-  const reactionCounts = reactionEmojis.map((emoji) => ({
-    emoji,
-    count: reactions.filter((r) => r.emoji === emoji).length,
-  }));
+  const likeCount = reactions.filter((r) => r.emoji === '❤️').length;
+  const hasLiked = reactions.some((r) => r.emoji === '❤️' && r.user_id === currentUser.id);
+  const replyCount = (p.replies || []).length;
 
   return `
     <div class="community-post">
       <div class="community-post-header">
         ${avatar}
         <div class="community-post-user">
-          <div class="community-post-name">${p.user.username} ${roleBadge}</div>
+          <div class="community-post-name" onclick="viewUserProfile('${p.user.id}')" style="cursor:pointer;">${p.user.username} ${roleBadge}</div>
           <div class="community-post-time">${new Date(p.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
         </div>
         ${p.user_id === currentUser.id || (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN') ? `<button class="community-delete-btn" onclick="deleteCommunityPost('${p.id}')">×</button>` : ''}
       </div>
-      ${p.content ? `<div class="community-post-content">${escapeHtml(p.content)}</div>` : ''}
       ${mediaHtml}
-      <div class="community-reactions">
-        ${reactionCounts.map((r) => `
-          <button class="reaction-btn ${r.count > 0 ? 'has-count' : ''}" onclick="reactToPost('${p.id}', '${r.emoji}')">
-            ${r.emoji} ${r.count > 0 ? `<span class="reaction-count">${r.count}</span>` : ''}
-          </button>
-        `).join('')}
+      ${p.content ? `<div class="community-post-content">${escapeHtml(p.content)}</div>` : ''}
+      <div class="community-actions">
+        <button class="ig-like-btn ${hasLiked ? 'liked' : ''}" onclick="reactToPost('${p.id}', '❤️')">
+          ${hasLiked ? '❤️' : '🤍'}
+        </button>
+        <span class="ig-like-count">${likeCount > 0 ? likeCount : ''}</span>
+        <button class="ig-comment-btn" onclick="document.getElementById('reply-input-${p.id}').focus()">💬</button>
+        ${replyCount > 0 ? `<span class="ig-reply-count">${replyCount}</span>` : ''}
       </div>
       <div class="community-replies">
-        ${(p.replies || []).map((r) => renderCommunityReply(r, p.id)).join('')}
+        ${(p.replies || []).slice(0, 2).map((r) => renderCommunityReply(r, p.id)).join('')}
+        ${replyCount > 2 ? `<button class="ig-show-more-replies" onclick="toggleReplies('${p.id}')">Ver los ${replyCount} comentarios</button>` : ''}
         <div class="community-reply-input">
-          <input type="text" class="form-input" placeholder="Responder..." id="reply-input-${p.id}" onkeypress="if(event.key==='Enter'){replyToPost('${p.id}');}" />
+          <input type="text" class="form-input" placeholder="Añade un comentario..." id="reply-input-${p.id}" onkeypress="if(event.key==='Enter'){replyToPost('${p.id}');}" />
         </div>
       </div>
     </div>
@@ -1782,19 +1861,28 @@ async function replyToPost(postId) {
   try {
     await apiCall(`/community/posts/${postId}/replies`, 'POST', { content });
     input.value = '';
+    loadCommunityFeed(true);
   } catch (err) { alert(err.message); }
 }
 
 async function reactToPost(postId, emoji) {
   try {
     await apiCall(`/community/posts/${postId}/react`, 'POST', { emoji });
+    loadCommunityFeed(true);
   } catch (err) { console.error('React error:', err); }
+}
+
+function toggleReplies(postId) {
+  const post = document.querySelector(`#community-feed .community-post`);
+  if (!post) return;
+  loadCommunityFeed(true);
 }
 
 async function deleteCommunityPost(postId) {
   if (!confirm('¿Eliminar esta publicación?')) return;
   try {
     await apiCall(`/community/posts/${postId}`, 'DELETE');
+    loadCommunityFeed(true);
   } catch (err) { alert(err.message); }
 }
 
@@ -1849,28 +1937,65 @@ async function loadUserProfileDetail(userId) {
       ? `<span class="community-role-badge ${ROLE_BADGES[u.role] || ''}">${ROLE_LABELS[u.role] || u.role}</span>`
       : '';
 
+    const photoPosts = (data.posts || []).filter((p) => p.media_url && p.media_type === 'IMAGE');
+    const photoGrid = photoPosts.length > 0
+      ? `<div class="profile-photo-grid">${photoPosts.map((p) => `<img src="${p.media_url}" class="profile-photo-thumb" onclick="viewMealPhoto('${p.media_url}')" />`).join('')}</div>`
+      : '<div class="empty-state"><div class="empty-state-text">Sin fotos</div></div>';
+
+    const textPosts = (data.posts || []).map((p) => {
+      const likeCount = (p.reactions || []).filter((r) => r.emoji === '❤️').length;
+      const replyCount = (p.replies || []).length;
+      let mediaHtml = '';
+      if (p.media_url) {
+        mediaHtml = p.media_type === 'VIDEO'
+          ? `<video src="${p.media_url}" controls class="community-media" style="margin-bottom:0.5rem;"></video>`
+          : `<img src="${p.media_url}" class="community-media" style="margin-bottom:0.5rem;" onclick="viewMealPhoto('${p.media_url}')" />`;
+      }
+      return `<div class="community-post" style="margin-bottom:0.5rem;">${mediaHtml}${p.content ? `<div class="community-post-content">${escapeHtml(p.content)}</div>` : ''}<div class="community-actions"><span>❤️ ${likeCount}</span><span>💬 ${replyCount}</span></div></div>`;
+    }).join('');
+
+    const routinesHtml = (data.routines || []).length > 0
+      ? data.routines.map((r) => `<div class="list-item"><div><div class="list-item-name">${r.name}</div><div class="list-item-meta">${r._count?.exercises || 0} ejercicios · ${r.ai_generated ? 'IA' : 'Manual'}${r.day_of_week ? ' · Día ' + r.day_of_week : ''}</div></div></div>`).join('')
+      : '<div class="empty-state"><div class="empty-state-text">Sin rutinas públicas</div></div>';
+
     document.getElementById('user-profile-view').innerHTML = `
       <div class="modal-header">
         <h2>Perfil de ${u.username}</h2>
         <button class="modal-close" onclick="closeModal()">×</button>
       </div>
-      <div style="text-align:center; margin-bottom:1.5rem;">
+      <div style="text-align:center; margin-bottom:1rem;">
         ${avatar}
         <h3 style="margin-top:0.5rem;">${u.username} ${roleBadge}</h3>
-        ${u.bio ? `<p style="color:var(--text-2);">${u.bio}</p>` : ''}
+        ${u.bio ? `<p style="color:var(--text-2); font-size:0.85rem;">${u.bio}</p>` : ''}
       </div>
       <div class="community-profile-stats">
         <div class="community-profile-stat"><span class="community-profile-stat-val">${u.post_count || 0}</span><span class="community-profile-stat-label">Posts</span></div>
         <div class="community-profile-stat"><span class="community-profile-stat-val">${u.routine_count || 0}</span><span class="community-profile-stat-label">Rutinas</span></div>
+        <div class="community-profile-stat"><span class="community-profile-stat-val">${photoPosts.length}</span><span class="community-profile-stat-label">Fotos</span></div>
       </div>
-      <div style="margin-top:1rem;">
+      <div style="margin: 0.75rem 0;">
         ${u.goal ? `<div class="exercise-row"><span class="exercise-name">Objetivo</span><span class="exercise-stat">${goalLabel(u.goal)}</span></div>` : ''}
         ${u.body_type ? `<div class="exercise-row"><span class="exercise-name">Tipo de cuerpo</span><span class="exercise-stat">${bodyTypeLabel(u.body_type)}</span></div>` : ''}
-        ${u.height_cm ? `<div class="exercise-row"><span class="exercise-name">Altura</span><span class="exercise-stat">${u.height_cm} cm</span></div>` : ''}
-        ${u.weight_kg ? `<div class="exercise-row"><span class="exercise-name">Peso</span><span class="exercise-stat">${u.weight_kg} kg</span></div>` : ''}
       </div>
+      <div class="profile-tabs">
+        <button class="profile-tab-btn active" onclick="switchProfileTab(event, 'photos')">Fotos</button>
+        <button class="profile-tab-btn" onclick="switchProfileTab(event, 'posts')">Posts</button>
+        <button class="profile-tab-btn" onclick="switchProfileTab(event, 'routines')">Rutinas</button>
+      </div>
+      <div id="profile-tab-photos" class="profile-tab-content">${photoGrid}</div>
+      <div id="profile-tab-posts" class="profile-tab-content" style="display:none;">${textPosts || '<div class="empty-state"><div class="empty-state-text">Sin publicaciones</div></div>'}</div>
+      <div id="profile-tab-routines" class="profile-tab-content" style="display:none;">${routinesHtml}</div>
     `;
   } catch (err) { document.getElementById('user-profile-view').innerHTML = `<div class="auth-error show">${err.message}</div>`; }
+}
+
+function switchProfileTab(e, tab) {
+  document.querySelectorAll('.profile-tab-btn').forEach((b) => b.classList.remove('active'));
+  e.target.classList.add('active');
+  ['photos', 'posts', 'routines'].forEach((t) => {
+    const el = document.getElementById(`profile-tab-${t}`);
+    if (el) el.style.display = t === tab ? 'block' : 'none';
+  });
 }
 
 // ===== Init =====

@@ -216,6 +216,7 @@ function generateFallbackWeekly(params) {
       selected = filtered.slice(0, 8);
     }
     const shuffled = [...selected].sort(() => Math.random() - 0.5).slice(0, exerciseCount);
+    const pool = selected.filter((e) => !shuffled.includes(e));
 
     const sets = cfg.sets + btCfg.extraSets;
     const repsBase = cfg.reps.split('-');
@@ -226,15 +227,22 @@ function generateFallbackWeekly(params) {
       day_of_week: dayInfo.day,
       label: dayInfo.label,
       focus: FOCUS_ES[dayInfo.focus] || dayInfo.focus,
-      exercises: shuffled.map((ex) => ({
-        exercise_id: ex.id,
-        name: ex.name,
-        sets,
-        reps,
-        rest_seconds: rest,
-        gif_url: ex.gif_url,
-        image: ex.image,
-      })),
+      exercises: shuffled.map((ex) => {
+        const alts = pool
+          .filter((e) => e.category === ex.category && e.id !== ex.id)
+          .slice(0, 2)
+          .map((alt) => ({ exercise_id: alt.id, name: alt.name, gif_url: alt.gif_url, image: alt.image }));
+        return {
+          exercise_id: ex.id,
+          name: ex.name,
+          sets,
+          reps,
+          rest_seconds: rest,
+          gif_url: ex.gif_url,
+          image: ex.image,
+          alternatives: alts,
+        };
+      }),
     };
   });
 

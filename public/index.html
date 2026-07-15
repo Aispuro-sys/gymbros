@@ -17,7 +17,8 @@
     <div class="auth-brand">
       <div class="auth-brand-content">
         <div class="brand-logo">
-          <img src="/assets/images/Logo Talos Wite.png" alt="Talos Forge" class="brand-logo-img" />
+          <img src="/assets/images/Logo Talos Wite.png" alt="Talos Forge" class="brand-logo-img brand-logo-dark" />
+          <img src="/assets/images/Logo Talos Black.png" alt="Talos Forge" class="brand-logo-img brand-logo-light" />
         </div>
         <h1>Talos Forge — Your Progress</h1>
         <p>Talos va directo al grano: te da tu lista exacta de qué entrenar, qué comer y qué suplementos tomar cada día, sin distracciones.</p>
@@ -284,6 +285,12 @@
           </div>
           <div id="overview-supplements"></div>
         </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Progreso de la semana</div>
+          </div>
+          <div id="overview-progress"></div>
+        </div>
       </section>
 
       <!-- AI Coach -->
@@ -462,6 +469,20 @@
       <section id="page-profile" class="page-section">
         <div class="page-header">
           <h1 class="page-title">Perfil</h1>
+        </div>
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="card-header"><div class="card-title">Foto de perfil</div></div>
+          <div class="profile-photo-section">
+            <label class="profile-photo-upload" id="profile-photo-upload">
+              <span class="upload-placeholder" id="profile-photo-placeholder">📷</span>
+              <img id="profile-photo-preview" style="display:none;" />
+              <input type="file" accept="image/*" style="display:none;" onchange="handleProfilePhoto(event)" />
+            </label>
+            <div class="profile-photo-info">
+              <h3>Foto de perfil</h3>
+              <p>Toca para subir o cambiar tu foto</p>
+            </div>
+          </div>
         </div>
         <div class="content-grid">
           <div class="card">

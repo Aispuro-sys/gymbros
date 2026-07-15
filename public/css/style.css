@@ -102,6 +102,12 @@ body {
   object-fit: contain;
 }
 
+.brand-logo-dark { display: block; }
+.brand-logo-light { display: none; }
+
+[data-theme="light"] .brand-logo-dark { display: none; }
+[data-theme="light"] .brand-logo-light { display: block; }
+
 .brand-logo-icon {
   width: 40px;
   height: 40px;
@@ -628,7 +634,7 @@ select.form-input option {
 .badge-morning { background: var(--surface-2); color: var(--text-2); }
 .badge-pre-workout { background: var(--surface-2); color: var(--text); }
 .badge-night { background: var(--surface-2); color: var(--text-2); }
-.badge-ai { background: var(--surface-3); color: var(--text); border: 1px solid var(--border-2); }
+.badge-ai { background: var(--surface-3); color: var(--text); border: 1px solid var(--border-2); font-weight: 700; }
 .badge-manual { background: var(--surface); color: var(--text-3); }
 
 /* Routine card */
@@ -1340,6 +1346,37 @@ select.form-input option {
   background: var(--surface-2);
   border-radius: 6px;
   cursor: pointer;
+}
+
+.exercise-alternatives {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.exercise-alt-label {
+  font-size: 0.65rem;
+  color: var(--text-3);
+  font-style: italic;
+}
+
+.exercise-alt-btn {
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.exercise-alt-btn:hover {
+  border-color: var(--border-2);
+  color: var(--text);
+  background: var(--surface-2);
 }
 
 /* ===== Meal recommendations ===== */
@@ -2270,43 +2307,83 @@ select.form-input option {
   color: var(--danger);
 }
 
-.community-reactions {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  margin-bottom: 0.75rem;
-}
-
-.reaction-btn {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 4px 10px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: var(--transition);
+.community-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  padding: 8px 0 6px;
+  border-top: 1px solid var(--border);
+  margin-top: 0.5rem;
 }
 
-.reaction-btn:hover {
-  border-color: var(--border-2);
+.ig-like-btn {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 2px;
+  transition: transform 0.15s ease;
+  line-height: 1;
 }
 
-.reaction-btn.has-count {
-  background: var(--surface);
+.ig-like-btn:hover {
+  transform: scale(1.2);
 }
 
-.reaction-count {
-  font-size: 0.72rem;
+.ig-like-btn.liked {
+  animation: heartPop 0.3s ease;
+}
+
+@keyframes heartPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+.ig-like-count {
+  font-size: 0.8rem;
   font-weight: 700;
+  color: var(--text);
+  min-width: 20px;
+}
+
+.ig-comment-btn {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 2px;
+  transition: transform 0.15s ease;
+  line-height: 1;
+}
+
+.ig-comment-btn:hover {
+  transform: scale(1.2);
+}
+
+.ig-reply-count {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.ig-show-more-replies {
+  background: none;
+  border: none;
+  color: var(--text-3);
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 4px 0;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.ig-show-more-replies:hover {
   color: var(--text-2);
 }
 
 .community-replies {
-  border-top: 1px solid var(--border);
-  padding-top: 0.5rem;
+  padding-top: 0.25rem;
 }
 
 .community-reply {
@@ -2399,6 +2476,110 @@ select.form-input option {
 .community-profile-stat-label {
   display: block;
   font-size: 0.7rem;
+  color: var(--text-3);
+}
+
+.profile-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin: 1rem 0 0.75rem;
+}
+
+.profile-tab-btn {
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-3);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: var(--transition);
+}
+
+.profile-tab-btn:hover {
+  color: var(--text-2);
+}
+
+.profile-tab-btn.active {
+  color: var(--text);
+  border-bottom-color: var(--text);
+}
+
+.profile-tab-content {
+  min-height: 100px;
+}
+
+.profile-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.profile-photo-thumb {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.profile-photo-thumb:hover {
+  opacity: 0.85;
+}
+
+.profile-photo-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.profile-photo-upload {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px dashed var(--border-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: var(--transition);
+  position: relative;
+}
+
+.profile-photo-upload:hover {
+  border-color: var(--text-2);
+}
+
+.profile-photo-upload img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.profile-photo-upload .upload-placeholder {
+  font-size: 1.5rem;
+  color: var(--text-3);
+}
+
+.profile-photo-info {
+  flex: 1;
+}
+
+.profile-photo-info h3 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.profile-photo-info p {
+  font-size: 0.78rem;
   color: var(--text-3);
 }
 

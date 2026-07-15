@@ -71,7 +71,7 @@ router.get('/feed', async (req, res) => {
           },
           orderBy: { created_at: 'asc' },
         },
-        reactions: true,
+        reactions: { select: { id: true, emoji: true, user_id: true } },
       },
     });
 
@@ -223,7 +223,24 @@ router.get('/profile/:userId', async (req, res) => {
     const postCount = await prisma.communityPost.count({ where: { user_id: req.params.userId } });
     const routineCount = await prisma.routine.count({ where: { user_id: req.params.userId } });
 
-    res.json({ user: { ...user, post_count: postCount, routine_count: routineCount } });
+    const posts = await prisma.communityPost.findMany({
+      where: { user_id: req.params.userId, parent_id: null },
+      orderBy: { created_at: 'desc' },
+      take: 10,
+      include: {
+        reactions: { select: { id: true, emoji: true, user_id: true } },
+        replies: { include: { user: { select: { id: true, username: true, profile_photo: true, role: true } } } },
+      },
+    });
+
+    const routines = await prisma.routine.findMany({
+      where: { user_id: req.params.userId },
+      select: { id: true, name: true, day_of_week: true, ai_generated: true, _count: { select: { exercises: true } } },
+      orderBy: { day_of_week: 'asc' },
+      take: 10,
+    });
+
+    res.json({ user: { ...user, post_count: postCount, routine_count: routineCount }, posts, routines });
   } catch (err) {
     console.error('Profile fetch error:', err);
     res.status(500).json({ error: 'Internal server error' });
