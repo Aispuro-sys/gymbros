@@ -17,6 +17,7 @@ model User {
   weight_kg    Float?
   goal         String?  @default("MAINTENANCE")
   body_type    String?  
+  gender       String?  @default("M")
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
 

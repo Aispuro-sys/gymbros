@@ -78,6 +78,7 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
       weight_kg: parseFloat(document.getElementById('reg-weight').value) || undefined,
       goal: document.getElementById('reg-goal').value,
       body_type: document.getElementById('reg-body-type').value || undefined,
+      gender: document.getElementById('reg-gender').value || 'M',
     });
     token = data.token;
     localStorage.setItem('gym_bros_token', token);
@@ -1327,12 +1328,32 @@ function showModal(html) {
 function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); }
 document.getElementById('modal-overlay').addEventListener('click', (e) => { if (e.target.id === 'modal-overlay') closeModal(); });
 
-// ===== Body Type Selection =====
+// ===== Body Type & Gender Selection =====
+const BODY_TYPE_IMAGES = {
+  ECTOMORPH: { M: '/assets/images/Ectomorfo Masculino.png', F: '/assets/images/Ectomorfo Femenino.png' },
+  MESOMORPH: { M: '/assets/images/Mesomorfo Masculino.png', F: '/assets/images/Mesomorfo Femenino.png' },
+  ENDOMORPH: { M: '/assets/images/Endomorfo Masculino.png', F: '/assets/images/Endomorfo Femenino.png' },
+};
+
 function selectBodyType(prefix, type) {
   const grid = document.getElementById(`${prefix}-body-type-grid`);
   grid.querySelectorAll('.body-type-card').forEach((c) => c.classList.remove('selected'));
   grid.querySelector(`[data-body-type="${type}"]`).classList.add('selected');
   document.getElementById(`${prefix}-body-type`).value = type;
+}
+
+function selectGender(prefix, gender) {
+  const toggle = document.getElementById(`${prefix}-gender-toggle`);
+  if (!toggle) return;
+  toggle.querySelectorAll('.gender-btn').forEach((b) => b.classList.remove('active'));
+  toggle.querySelector(`[data-gender="${gender}"]`).classList.add('active');
+  document.getElementById(`${prefix}-gender`).value = gender;
+
+  const types = ['ECTOMORPH', 'MESOMORPH', 'ENDOMORPH'];
+  types.forEach((type) => {
+    const img = document.getElementById(`${prefix}-img-${type}`);
+    if (img) img.src = BODY_TYPE_IMAGES[type][gender];
+  });
 }
 
 // ===== Profile =====
@@ -1344,6 +1365,9 @@ function loadProfile() {
   document.getElementById('prof-height').value = u.height_cm || '';
   document.getElementById('prof-weight').value = u.weight_kg || '';
   document.getElementById('prof-goal').value = u.goal || 'MAINTENANCE';
+
+  const userGender = u.gender || 'M';
+  selectGender('prof', userGender);
 
   if (u.body_type) {
     selectBodyType('prof', u.body_type);
@@ -1379,6 +1403,7 @@ async function saveProfile(e) {
       height_cm: parseFloat(document.getElementById('prof-height').value) || undefined,
       weight_kg: parseFloat(document.getElementById('prof-weight').value) || undefined,
       goal: document.getElementById('prof-goal').value,
+      gender: document.getElementById('prof-gender').value,
     });
     currentUser = data.user;
     document.getElementById('user-name').textContent = data.user.username;
@@ -1390,9 +1415,10 @@ async function saveProfile(e) {
 
 async function saveBodyType() {
   const bodyType = document.getElementById('prof-body-type').value;
+  const gender = document.getElementById('prof-gender').value;
   if (!bodyType) { alert('Selecciona un tipo de cuerpo'); return; }
   try {
-    const data = await apiCall('/auth/profile', 'PUT', { body_type: bodyType });
+    const data = await apiCall('/auth/profile', 'PUT', { body_type: bodyType, gender });
     currentUser = data.user;
     alert('Tipo de cuerpo guardado: ' + bodyTypeLabel(bodyType));
   } catch (err) { alert(err.message); }

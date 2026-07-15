@@ -18,6 +18,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
 app.use('/exercises-dataset', express.static(path.join(__dirname, '..', 'exercises-dataset')));
 
 app.use('/api/auth', authRoutes);

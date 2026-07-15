@@ -1506,7 +1506,7 @@ select.form-input option {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1rem;
+  padding: 0.75rem;
   cursor: pointer;
   transition: var(--transition);
   text-align: center;
@@ -1534,15 +1534,53 @@ select.form-input option {
   background: var(--text);
 }
 
-.body-type-svg {
-  width: 80px;
-  height: 100px;
+.body-type-img {
+  width: 100%;
+  max-width: 90px;
+  height: auto;
+  aspect-ratio: 3/4;
+  object-fit: contain;
   margin: 0 auto 0.5rem;
-  opacity: 0.8;
+  display: block;
+  border-radius: 6px;
+  opacity: 0.85;
+  transition: var(--transition);
 }
 
-.body-type-card.selected .body-type-svg {
+.body-type-card.selected .body-type-img {
   opacity: 1;
+}
+
+/* ===== Gender Toggle ===== */
+.gender-toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.gender-btn {
+  flex: 1;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: none;
+  color: var(--text-3);
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.gender-btn:hover {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.gender-btn.active {
+  background: var(--text);
+  color: var(--bg);
 }
 
 .body-type-name {

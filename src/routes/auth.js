@@ -8,7 +8,7 @@ const router = express.Router();
 
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password, age, height_cm, weight_kg, goal, body_type } = req.body;
+    const { username, email, password, age, height_cm, weight_kg, goal, body_type, gender } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'Username, email and password are required' });
@@ -32,6 +32,7 @@ router.post('/register', async (req, res) => {
         weight_kg: weight_kg || null,
         goal: goal || 'MAINTENANCE',
         body_type: body_type || null,
+        gender: gender || 'M',
       },
     });
 
@@ -48,6 +49,7 @@ router.post('/register', async (req, res) => {
         weight_kg: user.weight_kg,
         goal: user.goal,
         body_type: user.body_type,
+        gender: user.gender,
       },
     });
   } catch (err) {
@@ -87,6 +89,7 @@ router.post('/login', async (req, res) => {
         weight_kg: user.weight_kg,
         goal: user.goal,
         body_type: user.body_type,
+        gender: user.gender,
       },
     });
   } catch (err) {
@@ -108,6 +111,7 @@ router.get('/me', authMiddleware, async (req, res) => {
         weight_kg: true,
         goal: true,
         body_type: true,
+        gender: true,
         created_at: true,
       },
     });
@@ -120,7 +124,7 @@ router.get('/me', authMiddleware, async (req, res) => {
 
 router.put('/profile', authMiddleware, async (req, res) => {
   try {
-    const { username, age, height_cm, weight_kg, goal, body_type } = req.body;
+    const { username, age, height_cm, weight_kg, goal, body_type, gender } = req.body;
     const updated = await prisma.user.update({
       where: { id: req.userId },
       data: {
@@ -130,6 +134,7 @@ router.put('/profile', authMiddleware, async (req, res) => {
         ...(weight_kg !== undefined && { weight_kg }),
         ...(goal && { goal }),
         ...(body_type !== undefined && { body_type }),
+        ...(gender !== undefined && { gender }),
       },
       select: {
         id: true,
@@ -140,6 +145,7 @@ router.put('/profile', authMiddleware, async (req, res) => {
         weight_kg: true,
         goal: true,
         body_type: true,
+        gender: true,
       },
     });
     res.json({ user: updated });

@@ -9,6 +9,7 @@ CREATE TABLE "users" (
     "weight_kg" DOUBLE PRECISION,
     "goal" TEXT DEFAULT 'MAINTENANCE',
     "body_type" TEXT,
+    "gender" TEXT DEFAULT 'M',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
