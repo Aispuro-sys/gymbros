@@ -15,8 +15,5 @@
     { "src": "/exercises-dataset/(.*)", "dest": "/exercises-dataset/$1" },
     { "src": "/api/(.*)", "dest": "/src/server.js" },
     { "src": "/(.*)", "dest": "/src/server.js" }
-  ],
-  "env": {
-    "DATABASE_PROVIDER": "postgresql"
-  }
+  ]
 }
