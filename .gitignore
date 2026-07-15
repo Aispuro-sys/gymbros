@@ -1,4 +1,3 @@
 node_modules/
 prisma/dev.db*
-prisma/migrations/
 .env
