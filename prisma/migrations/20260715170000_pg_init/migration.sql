@@ -139,3 +139,42 @@ ALTER TABLE "team_members" ADD CONSTRAINT "team_members_team_id_fkey" FOREIGN KE
 
 -- AddForeignKey
 ALTER TABLE "team_members" ADD CONSTRAINT "team_members_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- CreateTable
+CREATE TABLE "team_routines" (
+    "id" TEXT NOT NULL,
+    "team_id" TEXT NOT NULL,
+    "routine_id" TEXT NOT NULL,
+    "shared_by" TEXT NOT NULL,
+    "shared_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "team_routines_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "team_posts" (
+    "id" TEXT NOT NULL,
+    "team_id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "post_type" TEXT NOT NULL DEFAULT 'MESSAGE',
+    "routine_id" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "team_posts_pkey" PRIMARY KEY ("id")
+);
+
+-- AddForeignKey
+ALTER TABLE "team_routines" ADD CONSTRAINT "team_routines_team_id_fkey" FOREIGN KEY ("team_id") REFERENCES "teams"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "team_routines" ADD CONSTRAINT "team_routines_routine_id_fkey" FOREIGN KEY ("routine_id") REFERENCES "routines"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "team_routines" ADD CONSTRAINT "team_routines_shared_by_fkey" FOREIGN KEY ("shared_by") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "team_posts" ADD CONSTRAINT "team_posts_team_id_fkey" FOREIGN KEY ("team_id") REFERENCES "teams"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "team_posts" ADD CONSTRAINT "team_posts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

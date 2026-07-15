@@ -438,14 +438,17 @@
 
       <!-- Teams -->
       <section id="page-teams" class="page-section">
-        <div class="page-header">
-          <h1 class="page-title">Equipos</h1>
-          <div style="display:flex; gap:8px;">
-            <button class="btn-secondary" style="width:auto; padding:10px 16px;" onclick="openJoinTeamModal()">Unirse</button>
-            <button class="btn-primary" style="width:auto; padding:10px 16px;" onclick="openCreateTeamModal()">+ Crear</button>
+        <div id="teams-list-view">
+          <div class="page-header">
+            <h1 class="page-title">Equipos</h1>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn-secondary" style="width:auto; padding:10px 16px;" onclick="openJoinTeamModal()">Unirse</button>
+              <button class="btn-primary" style="width:auto; padding:10px 16px;" onclick="openCreateTeamModal()">+ Crear</button>
+            </div>
           </div>
+          <div id="teams-list"></div>
         </div>
-        <div id="teams-list"></div>
+        <div id="team-detail-view" style="display:none;"></div>
       </section>
 
       <!-- Profile -->

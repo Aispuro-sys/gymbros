@@ -1689,3 +1689,44 @@ select.form-input {
   .photo-preview-img { max-width: 100%; }
   .photo-capture-area { padding: 1rem 0.5rem; }
 }
+
+/* ===== Team Feed ===== */
+.team-card:hover {
+  border-color: var(--border-2);
+  background: var(--surface-2);
+}
+
+.feed-post {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.feed-post:last-child { border-bottom: none; }
+
+.feed-post-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.feed-post-author {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.feed-post-time {
+  font-size: 0.65rem;
+  color: var(--text-3);
+}
+
+.feed-post-content {
+  font-size: 0.82rem;
+  color: var(--text-2);
+  line-height: 1.5;
+  padding-left: 36px;
+}
+
+@media (max-width: 768px) {
+  .feed-post-content { padding-left: 0; }
+}

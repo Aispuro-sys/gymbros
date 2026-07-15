@@ -801,25 +801,187 @@ async function createSupplement(e) {
 }
 
 // ===== Teams =====
+let currentTeamId = null;
+
 async function loadTeams() {
   try {
     const data = await apiCall('/teams');
     const list = document.getElementById('teams-list');
     if (data.teams.length === 0) {
-      list.innerHTML = emptyState('No perteneces a ningún equipo.');
+      list.innerHTML = emptyState('No perteneces a ningun equipo. Crea uno o unete con un codigo.');
       return;
     }
     list.innerHTML = data.teams.map((t) => `
-      <div class="routine-card">
+      <div class="routine-card team-card" onclick="openTeamDetail('${t.id}')" style="cursor:pointer;">
         <div class="routine-header"><div>
           <div class="routine-name">${t.name}</div>
-          <div class="list-item-meta">Código: <strong style="color:var(--text);">${t.invite_code}</strong> · ${t.members.length} miembro(s)</div>
+          <div class="list-item-meta">${t.members.length} miembro(s) · Tu rol: ${t.role === 'ADMIN' ? 'Admin' : 'Miembro'}</div>
         </div>
         <span class="list-item-badge ${t.role === 'ADMIN' ? 'badge-ai' : 'badge-manual'}">${t.role === 'ADMIN' ? 'Admin' : 'Miembro'}</span></div>
-        <div style="margin-top:0.5rem;">${t.members.map((m) => `<div class="list-item-name" style="padding:5px 0; border-bottom:1px solid var(--border);">${m.user.username}${m.role === 'ADMIN' ? ' *' : ''}</div>`).join('')}</div>
+        <div style="margin-top:0.5rem; font-size:0.75rem; color:var(--text-3);">Codigo: <strong style="color:var(--text-2);">${t.invite_code}</strong></div>
       </div>
     `).join('');
   } catch (err) { console.error('Teams error:', err); }
+}
+
+async function openTeamDetail(teamId) {
+  currentTeamId = teamId;
+  document.getElementById('teams-list-view').style.display = 'none';
+  const detail = document.getElementById('team-detail-view');
+  detail.style.display = 'block';
+  detail.innerHTML = loadingHtml();
+
+  try {
+    const data = await apiCall(`/teams/${teamId}`);
+    const { team, role } = data;
+    const goalLabels = { BULK: 'Volumen', CUT: 'Definicion', MAINTENANCE: 'Mantener' };
+    const btLabels = { ECTOMORPH: 'Ectomorfo', MESOMORPH: 'Mesomorfo', ENDOMORPH: 'Endomorfo' };
+
+    detail.innerHTML = `
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">${team.name}</h1>
+          <div class="page-date">${team.members.length} miembros · ${role === 'ADMIN' ? 'Admin' : 'Miembro'}</div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="copyInviteCode('${team.invite_code}')">Copiar codigo</button>
+          <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="openShareRoutineModal()">Compartir rutina</button>
+          <button class="btn-secondary" style="width:auto; padding:8px 14px; color:var(--danger);" onclick="leaveTeam('${team.id}')">Salir</button>
+          <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="backToTeamsList()">Volver</button>
+        </div>
+      </div>
+
+      <div class="content-grid">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Miembros (${team.members.length})</div></div>
+          ${team.members.map((m) => `
+            <div class="list-item">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div class="user-avatar" style="width:28px; height:28px; font-size:11px;">${m.user.username.charAt(0).toUpperCase()}</div>
+                <div>
+                  <div class="list-item-name">${m.user.username}${m.user.id === currentUser.id ? ' (tu)' : ''}</div>
+                  <div class="list-item-meta">${m.role === 'ADMIN' ? 'Admin' : 'Miembro'}${m.user.goal ? ' · ' + (goalLabels[m.user.goal] || m.user.goal) : ''}${m.user.body_type ? ' · ' + (btLabels[m.user.body_type] || m.user.body_type) : ''}</div>
+                </div>
+              </div>
+              <span class="list-item-badge ${m.role === 'ADMIN' ? 'badge-ai' : 'badge-manual'}">${m.role === 'ADMIN' ? 'Admin' : 'Miembro'}</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">Rutinas compartidas (${team.shared_routines.length})</div></div>
+          ${team.shared_routines.length === 0 ? emptyState('Sin rutinas compartidas') : team.shared_routines.map((sr) => `
+            <div class="routine-card" style="margin-bottom:0.5rem;">
+              <div class="routine-header">
+                <div>
+                  <div class="routine-name">${sr.routine.name}</div>
+                  <div class="list-item-meta">Compartida por ${sr.user.username} · ${sr.routine.exercises.length} ejercicios</div>
+                </div>
+                ${sr.routine.user_id === currentUser.id ? '' : `<button class="btn-secondary" style="width:auto; padding:6px 12px; font-size:0.72rem;" onclick="copyRoutine('${team.id}', '${sr.routine_id}')">Copiar</button>`}
+              </div>
+              ${sr.routine.exercises.map((ex) => `
+                <div class="exercise-row" style="grid-template-columns: 1fr auto; font-size:0.75rem; padding:4px 0;">
+                  <span class="exercise-name">${ex.name}</span>
+                  <span class="exercise-stat">${ex.sets}x${ex.reps}</span>
+                </div>
+              `).join('')}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:1rem;">
+        <div class="card-header"><div class="card-title">Feed del equipo</div></div>
+        <form onsubmit="postToFeed(event)" style="margin-bottom:1rem;">
+          <div style="display:flex; gap:8px;">
+            <input type="text" class="form-input" id="feed-post-input" placeholder="Escribe algo al equipo..." style="flex:1;" />
+            <button type="submit" class="btn-primary" style="width:auto; padding:10px 16px;">Publicar</button>
+          </div>
+        </form>
+        <div id="team-feed">
+          ${team.posts.length === 0 ? emptyState('Sin publicaciones. Se el primero!') : team.posts.map((p) => `
+            <div class="feed-post">
+              <div class="feed-post-header">
+                <div class="user-avatar" style="width:28px; height:28px; font-size:11px;">${p.user.username.charAt(0).toUpperCase()}</div>
+                <div>
+                  <div class="feed-post-author">${p.user.username}</div>
+                  <div class="feed-post-time">${new Date(p.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+                </div>
+              </div>
+              <div class="feed-post-content">${p.content}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    detail.innerHTML = `<div class="auth-error show">${err.message}</div>`;
+  }
+}
+
+function backToTeamsList() {
+  document.getElementById('teams-list-view').style.display = 'block';
+  document.getElementById('team-detail-view').style.display = 'none';
+  currentTeamId = null;
+  loadTeams();
+}
+
+function copyInviteCode(code) {
+  navigator.clipboard.writeText(code).then(() => {
+    alert('Codigo copiado: ' + code);
+  }).catch(() => {
+    prompt('Copia este codigo:', code);
+  });
+}
+
+async function openShareRoutineModal() {
+  try {
+    const data = await apiCall('/routines');
+    const options = data.routines.map((r) => `<option value="${r.id}">${r.name} (${r.exercises.length} ej.)</option>`).join('');
+    showModal(`
+      <div class="modal-header"><div class="modal-title">Compartir rutina al equipo</div><button class="modal-close" onclick="closeModal()">&times;</button></div>
+      <form onsubmit="shareRoutine(event)">
+        <div class="form-group"><label>Selecciona una rutina</label><select class="form-input" id="share-routine-id" required>${options}</select></div>
+        <button type="submit" class="btn-primary">Compartir</button>
+      </form>
+    `);
+  } catch (err) { alert(err.message); }
+}
+
+async function shareRoutine(e) {
+  e.preventDefault();
+  const routineId = document.getElementById('share-routine-id').value;
+  try {
+    await apiCall(`/teams/${currentTeamId}/share-routine`, 'POST', { routine_id: routineId });
+    closeModal();
+    openTeamDetail(currentTeamId);
+  } catch (err) { alert(err.message); }
+}
+
+async function copyRoutine(teamId, routineId) {
+  if (!confirm('Copiar esta rutina a tus rutinas?')) return;
+  try {
+    await apiCall(`/teams/${teamId}/copy-routine/${routineId}`, 'POST');
+    alert('Rutina copiada a tus rutinas');
+  } catch (err) { alert(err.message); }
+}
+
+async function postToFeed(e) {
+  e.preventDefault();
+  const content = document.getElementById('feed-post-input').value.trim();
+  if (!content) return;
+  try {
+    await apiCall(`/teams/${currentTeamId}/posts`, 'POST', { content });
+    openTeamDetail(currentTeamId);
+  } catch (err) { alert(err.message); }
+}
+
+async function leaveTeam(teamId) {
+  if (!confirm('Seguro que quieres salir del equipo?')) return;
+  try {
+    await apiCall(`/teams/${teamId}/leave`, 'DELETE');
+    backToTeamsList();
+  } catch (err) { alert(err.message); }
 }
 
 function openCreateTeamModal() {
@@ -834,7 +996,7 @@ async function createTeam(e) {
 
 function openJoinTeamModal() {
   showModal(`<div class="modal-header"><div class="modal-title">Unirse a equipo</div><button class="modal-close" onclick="closeModal()">&times;</button></div>
-  <form onsubmit="joinTeam(event)"><div class="form-group"><label>Código</label><input type="text" class="form-input" id="team-code" placeholder="GYM-ABC123" required style="text-transform:uppercase;" /></div>
+  <form onsubmit="joinTeam(event)"><div class="form-group"><label>Codigo</label><input type="text" class="form-input" id="team-code" placeholder="GYM-ABC123" required style="text-transform:uppercase;" /></div>
   <button type="submit" class="btn-primary">Unirse</button></form>`);
 }
 async function joinTeam(e) {

@@ -26,6 +26,8 @@ model User {
   supplements      SupplementMed[]
   team_memberships TeamMember[]
   owned_teams      Team[]
+  shared_routines  TeamRoutine[]
+  team_posts       TeamPost[]
 
   @@map("users")
 }
@@ -55,8 +57,9 @@ model Routine {
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
 
-  user      User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  exercises Exercise[]
+  user           User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  exercises      Exercise[]
+  team_routines  TeamRoutine[]
 
   @@map("routines")
 }
@@ -111,8 +114,10 @@ model Team {
   invite_code  String   @unique
   created_at   DateTime @default(now())
 
-  admin   User        @relation(fields: [admin_id], references: [id], onDelete: Cascade)
-  members TeamMember[]
+  admin          User          @relation(fields: [admin_id], references: [id], onDelete: Cascade)
+  members        TeamMember[]
+  shared_routines TeamRoutine[]
+  posts          TeamPost[]
 
   @@map("teams")
 }
@@ -128,4 +133,33 @@ model TeamMember {
 
   @@unique([team_id, user_id])
   @@map("team_members")
+}
+
+model TeamRoutine {
+  id         String   @id @default(uuid())
+  team_id    String
+  routine_id String
+  shared_by  String
+  shared_at  DateTime @default(now())
+
+  team    Team    @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  routine Routine @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [shared_by], references: [id], onDelete: Cascade)
+
+  @@map("team_routines")
+}
+
+model TeamPost {
+  id         String   @id @default(uuid())
+  team_id    String
+  user_id    String
+  content    String
+  post_type  String   @default("MESSAGE")
+  routine_id String?
+  created_at DateTime @default(now())
+
+  team Team    @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  user User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("team_posts")
 }
