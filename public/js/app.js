@@ -370,24 +370,61 @@ async function generateNutritionPlan() {
       <div class="exercise-row"><span class="exercise-name">Grasas</span><span class="exercise-stat">${p.fats_g}g</span></div>
     `;
     if (p.meals && p.meals.length > 0) {
-      html += `<div class="meal-section"><div class="meal-section-title">Comidas recomendadas</div>`;
-      p.meals.forEach((meal) => {
+      html += `<div class="meal-section"><div class="meal-section-title">Comidas recomendadas — toca para agregar a tu día</div>`;
+      p.meals.forEach((meal, idx) => {
+        const n = meal.numeric || {};
         html += `
-          <div class="meal-card">
+          <div class="meal-card meal-selectable" id="ai-meal-${idx}" onclick="selectAIMeal(${idx})">
             <div class="meal-header">
               <div class="meal-title">${meal.meal}</div>
               <div class="meal-macros">${meal.macros}</div>
             </div>
             <ul class="meal-foods">${meal.foods.map((f) => `<li>${f}</li>`).join('')}</ul>
+            <div class="meal-select-hint">+ Agregar a comidas de hoy</div>
           </div>
         `;
       });
       html += `</div>`;
+      html += `<div style="margin-top:0.75rem;"><button class="btn-primary" style="width:auto; padding:8px 16px;" onclick="addAllAIMeals()">Agregar todas las comidas</button></div>`;
+      window._aiNutritionPlan = p;
     }
     if (p.notes) html += `<div class="ai-notes"><strong>Coach IA:</strong> ${p.notes}</div>`;
     container.innerHTML = html;
   } catch (err) {
     container.innerHTML = `<div class="auth-error show">${err.message}</div>`;
+  }
+}
+
+async function selectAIMeal(idx) {
+  const plan = window._aiNutritionPlan;
+  if (!plan || !plan.meals || !plan.meals[idx]) return;
+  const meal = plan.meals[idx];
+  const card = document.getElementById(`ai-meal-${idx}`);
+  if (card.classList.contains('meal-selected')) return;
+
+  try {
+    const n = meal.numeric || {};
+    await apiCall('/meals', 'POST', {
+      name: meal.meal,
+      meal_type: meal.meal_type || 'SNACK',
+      calories: n.calories || 0,
+      protein_g: n.protein_g || 0,
+      carbs_g: n.carbs_g || 0,
+      fats_g: n.fats_g || 0,
+    });
+    card.classList.add('meal-selected');
+    card.querySelector('.meal-select-hint').textContent = '✓ Agregada a tu día';
+    loadMacros();
+  } catch (err) { alert(err.message); }
+}
+
+async function addAllAIMeals() {
+  const plan = window._aiNutritionPlan;
+  if (!plan || !plan.meals) return;
+  for (let i = 0; i < plan.meals.length; i++) {
+    const card = document.getElementById(`ai-meal-${i}`);
+    if (card && card.classList.contains('meal-selected')) continue;
+    await selectAIMeal(i);
   }
 }
 

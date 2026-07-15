@@ -1386,6 +1386,36 @@ select.form-input option {
   margin-bottom: 0.75rem;
 }
 
+.meal-selectable {
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.meal-selectable:hover {
+  border-color: var(--border-2);
+  background: var(--surface-2);
+}
+
+.meal-selected {
+  border-color: #22c55e !important;
+  background: rgba(34, 197, 94, 0.08) !important;
+}
+
+.meal-selected .meal-title {
+  color: #22c55e;
+}
+
+.meal-select-hint {
+  font-size: 0.72rem;
+  color: var(--text-3);
+  margin-top: 0.5rem;
+  font-weight: 600;
+}
+
+.meal-selected .meal-select-hint {
+  color: #22c55e;
+}
+
 /* ===== View toggle ===== */
 .view-toggle {
   display: flex;
