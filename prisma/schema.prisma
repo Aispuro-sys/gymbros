@@ -18,6 +18,9 @@ model User {
   goal         String?  @default("MAINTENANCE")
   body_type    String?  
   gender       String?  @default("M")
+  role         String   @default("NORMAL")
+  bio          String?
+  profile_photo String?
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
 
@@ -31,6 +34,9 @@ model User {
   team_posts       TeamPost[]
   exercise_logs    ExerciseLog[]
   meals            Meal[]
+  community_posts  CommunityPost[]
+  community_replies CommunityReply[]
+  community_reactions CommunityReaction[]
 
   @@map("users")
 }
@@ -200,4 +206,72 @@ model TeamPost {
   user User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("team_posts")
+}
+
+model Recipe {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  image_url   String?
+  calories    Int      @default(0)
+  protein_g   Int      @default(0)
+  carbs_g     Int      @default(0)
+  fats_g      Int      @default(0)
+  prep_time_min Int    @default(0)
+  servings    Int      @default(1)
+  ingredients String[]
+  instructions String[]
+  meal_type   String   @default("ANY")
+  diet_tags   String[]
+  source      String   @default("community")
+  created_at  DateTime @default(now())
+
+  @@map("recipes")
+}
+
+model CommunityPost {
+  id          String   @id @default(uuid())
+  user_id     String
+  content     String
+  media_url   String?
+  media_type  String   @default("TEXT")
+  routine_id  String?
+  parent_id   String?
+  created_at  DateTime @default(now())
+
+  user       User              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  replies    CommunityReply[]
+  reactions  CommunityReaction[]
+
+  @@map("community_posts")
+}
+
+model CommunityReply {
+  id          String   @id @default(uuid())
+  post_id     String
+  user_id     String
+  content     String
+  media_url   String?
+  created_at  DateTime @default(now())
+
+  user       User              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  postRef    CommunityPost     @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  reactions  CommunityReaction[]
+
+  @@map("community_replies")
+}
+
+model CommunityReaction {
+  id          String   @id @default(uuid())
+  post_id     String?
+  reply_id    String?
+  user_id     String
+  emoji       String
+  created_at  DateTime @default(now())
+
+  user   User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  post   CommunityPost?   @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  reply  CommunityReply?  @relation(fields: [reply_id], references: [id], onDelete: Cascade)
+
+  @@map("community_reactions")
 }

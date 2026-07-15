@@ -221,3 +221,86 @@ ALTER TABLE "exercise_logs" ADD CONSTRAINT "exercise_logs_exercise_id_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "meals" ADD CONSTRAINT "meals_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddColumns to users
+ALTER TABLE "users" ADD COLUMN "role" TEXT NOT NULL DEFAULT 'NORMAL';
+ALTER TABLE "users" ADD COLUMN "bio" TEXT;
+ALTER TABLE "users" ADD COLUMN "profile_photo" TEXT;
+
+-- CreateTable
+CREATE TABLE "recipes" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "image_url" TEXT,
+    "calories" INTEGER NOT NULL DEFAULT 0,
+    "protein_g" INTEGER NOT NULL DEFAULT 0,
+    "carbs_g" INTEGER NOT NULL DEFAULT 0,
+    "fats_g" INTEGER NOT NULL DEFAULT 0,
+    "prep_time_min" INTEGER NOT NULL DEFAULT 0,
+    "servings" INTEGER NOT NULL DEFAULT 1,
+    "ingredients" TEXT[],
+    "instructions" TEXT[],
+    "meal_type" TEXT NOT NULL DEFAULT 'ANY',
+    "diet_tags" TEXT[],
+    "source" TEXT NOT NULL DEFAULT 'community',
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "recipes_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "community_posts" (
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "media_url" TEXT,
+    "media_type" TEXT NOT NULL DEFAULT 'TEXT',
+    "routine_id" TEXT,
+    "parent_id" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "community_posts_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "community_replies" (
+    "id" TEXT NOT NULL,
+    "post_id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "media_url" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "community_replies_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "community_reactions" (
+    "id" TEXT NOT NULL,
+    "post_id" TEXT,
+    "reply_id" TEXT,
+    "user_id" TEXT NOT NULL,
+    "emoji" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "community_reactions_pkey" PRIMARY KEY ("id")
+);
+
+-- AddForeignKey
+ALTER TABLE "community_posts" ADD CONSTRAINT "community_posts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "community_replies" ADD CONSTRAINT "community_replies_post_id_fkey" FOREIGN KEY ("post_id") REFERENCES "community_posts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "community_replies" ADD CONSTRAINT "community_replies_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "community_reactions" ADD CONSTRAINT "community_reactions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "community_reactions" ADD CONSTRAINT "community_reactions_post_id_fkey" FOREIGN KEY ("post_id") REFERENCES "community_posts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "community_reactions" ADD CONSTRAINT "community_reactions_reply_id_fkey" FOREIGN KEY ("reply_id") REFERENCES "community_replies"("id") ON DELETE CASCADE ON UPDATE CASCADE;

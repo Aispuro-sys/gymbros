@@ -11,6 +11,8 @@ const teamRoutes = require('./routes/teams');
 const exerciseRoutes = require('./routes/exercises');
 const aiRoutes = require('./routes/ai');
 const mealRoutes = require('./routes/meals');
+const communityRoutes = require('./routes/community');
+const recipeRoutes = require('./routes/recipes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,6 +31,8 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/exercises', exerciseRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/meals', mealRoutes);
+app.use('/api/community', communityRoutes);
+app.use('/api/recipes', recipeRoutes);
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));

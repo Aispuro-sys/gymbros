@@ -184,6 +184,14 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <span>Equipos</span>
         </button>
+        <button class="nav-item" data-page="recipes" onclick="navigateTo('recipes')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" y1="17" x2="18" y2="17"/></svg>
+          <span>Recetas</span>
+        </button>
+        <button class="nav-item" data-page="community" onclick="navigateTo('community')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Comunidad</span>
+        </button>
         <button class="nav-item" data-page="profile" onclick="navigateTo('profile')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <span>Perfil</span>
@@ -228,6 +236,10 @@
       <button class="bottom-nav-item" data-page="teams" onclick="navigateTo('teams')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>Equipos</span>
+      </button>
+      <button class="bottom-nav-item" data-page="community" onclick="navigateTo('community')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Comunidad</span>
       </button>
       <button class="bottom-nav-item" data-page="profile" onclick="navigateTo('profile')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -505,6 +517,60 @@
           <div class="card-header"><div class="card-title">Tu IMC</div></div>
           <div id="profile-bmi-content"></div>
         </div>
+      </section>
+
+      <!-- Recipes -->
+      <section id="page-recipes" class="page-section">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Recetas Fitness</h1>
+            <div class="page-date">Comidas saludables con macros calculados</div>
+          </div>
+          <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="openRecipeModal()">+ Receta</button>
+        </div>
+        <div class="search-bar" style="margin-bottom:1rem;">
+          <input type="text" id="recipe-search" placeholder="Buscar receta..." oninput="loadRecipes()" />
+          <select id="recipe-meal-filter" onchange="loadRecipes()">
+            <option value="ANY">Todas</option>
+            <option value="BREAKFAST">Desayuno</option>
+            <option value="LUNCH">Comida</option>
+            <option value="DINNER">Cena</option>
+            <option value="SNACK">Snack</option>
+            <option value="POST_WORKOUT">Post-entreno</option>
+          </select>
+        </div>
+        <div id="recipes-grid" class="recipes-grid"></div>
+      </section>
+
+      <!-- Community -->
+      <section id="page-community" class="page-section">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Comunidad</h1>
+            <div class="page-date">Comparte, motiva y conecta</div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="card-header">
+            <div class="card-title">Buscar usuarios</div>
+          </div>
+          <input type="text" class="form-input" id="community-user-search" placeholder="Buscar por username..." oninput="searchCommunityUsers()" />
+          <div id="community-user-results" style="margin-top:0.5rem;"></div>
+        </div>
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="community-composer">
+            <textarea class="form-input" id="community-post-input" placeholder="¿Qué estás logrando hoy?" rows="3" style="resize:vertical; margin-bottom:0.5rem;"></textarea>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <label class="btn-secondary" style="width:auto; padding:8px 14px; cursor:pointer;">
+                <input type="file" accept="image/*,video/*" id="community-media-input" style="display:none;" onchange="handleCommunityMedia(event)" />
+                📷 Foto/Video
+              </label>
+              <button class="btn-primary" style="width:auto; padding:8px 16px;" onclick="postCommunity()">Publicar</button>
+              <div id="community-media-preview" style="display:none; max-width:120px; max-height:120px; border-radius:8px; overflow:hidden;"></div>
+            </div>
+          </div>
+        </div>
+        <div id="community-feed"></div>
       </section>
     </main>
   </div>

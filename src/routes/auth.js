@@ -50,6 +50,9 @@ router.post('/register', async (req, res) => {
         goal: user.goal,
         body_type: user.body_type,
         gender: user.gender,
+        role: user.role,
+        bio: user.bio,
+        profile_photo: user.profile_photo,
       },
     });
   } catch (err) {
@@ -90,6 +93,9 @@ router.post('/login', async (req, res) => {
         goal: user.goal,
         body_type: user.body_type,
         gender: user.gender,
+        role: user.role,
+        bio: user.bio,
+        profile_photo: user.profile_photo,
       },
     });
   } catch (err) {
@@ -112,6 +118,9 @@ router.get('/me', authMiddleware, async (req, res) => {
         goal: true,
         body_type: true,
         gender: true,
+        role: true,
+        bio: true,
+        profile_photo: true,
         created_at: true,
       },
     });
@@ -124,7 +133,7 @@ router.get('/me', authMiddleware, async (req, res) => {
 
 router.put('/profile', authMiddleware, async (req, res) => {
   try {
-    const { username, age, height_cm, weight_kg, goal, body_type, gender } = req.body;
+    const { username, age, height_cm, weight_kg, goal, body_type, gender, bio, profile_photo } = req.body;
     const updated = await prisma.user.update({
       where: { id: req.userId },
       data: {
@@ -135,6 +144,8 @@ router.put('/profile', authMiddleware, async (req, res) => {
         ...(goal && { goal }),
         ...(body_type !== undefined && { body_type }),
         ...(gender !== undefined && { gender }),
+        ...(bio !== undefined && { bio }),
+        ...(profile_photo !== undefined && { profile_photo }),
       },
       select: {
         id: true,
@@ -146,6 +157,9 @@ router.put('/profile', authMiddleware, async (req, res) => {
         goal: true,
         body_type: true,
         gender: true,
+        role: true,
+        bio: true,
+        profile_photo: true,
       },
     });
     res.json({ user: updated });

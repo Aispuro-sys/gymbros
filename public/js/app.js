@@ -146,6 +146,8 @@ function navigateTo(page) {
   if (page === 'nutrition') { loadMacros(); startPolling('nutrition', () => loadMacros(), 30000); }
   if (page === 'supplements') loadSupplements();
   if (page === 'teams') loadTeams();
+  if (page === 'recipes') loadRecipes();
+  if (page === 'community') { loadCommunityFeed(); startPolling('community', () => loadCommunityFeed(true), 5000); }
   if (page === 'profile') loadProfile();
 }
 
@@ -1422,6 +1424,370 @@ async function saveBodyType() {
     currentUser = data.user;
     alert('Tipo de cuerpo guardado: ' + bodyTypeLabel(bodyType));
   } catch (err) { alert(err.message); }
+}
+
+// ===== Recipes =====
+const MEAL_TYPE_RECIPE_LABELS = { BREAKFAST: 'Desayuno', LUNCH: 'Comida', DINNER: 'Cena', SNACK: 'Snack', POST_WORKOUT: 'Post-entreno', ANY: 'General' };
+
+async function loadRecipes() {
+  try {
+    const search = document.getElementById('recipe-search')?.value || '';
+    const mealType = document.getElementById('recipe-meal-filter')?.value || 'ANY';
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (mealType && mealType !== 'ANY') params.set('meal_type', mealType);
+    const data = await apiCall(`/recipes?${params.toString()}`);
+    const grid = document.getElementById('recipes-grid');
+    if (!data.recipes || data.recipes.length === 0) {
+      grid.innerHTML = emptyState('No hay recetas aún');
+      return;
+    }
+    grid.innerHTML = data.recipes.map((r) => `
+      <div class="recipe-card" onclick="viewRecipe('${r.id}')">
+        ${r.image_url ? `<img class="recipe-img" src="${r.image_url}" alt="${r.name}" />` : '<div class="recipe-img-placeholder">🥗</div>'}
+        <div class="recipe-info">
+          <div class="recipe-name">${r.name}</div>
+          <div class="recipe-meta">${r.calories} cal · ${r.protein_g}g prot · ${r.prep_time_min}min</div>
+          <div class="recipe-tags">${(r.diet_tags || []).map((t) => `<span class="recipe-tag">${t}</span>`).join('')}</div>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) { console.error('Recipes error:', err); }
+}
+
+function viewRecipe(id) {
+  showModal(`<div id="recipe-detail-view">${loadingHtml()}</div>`);
+  loadRecipeDetail(id);
+}
+
+async function loadRecipeDetail(id) {
+  try {
+    const data = await apiCall(`/recipes/${id}`);
+    const r = data.recipe;
+    document.getElementById('recipe-detail-view').innerHTML = `
+      <div class="modal-header">
+        <h2>${r.name}</h2>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      ${r.image_url ? `<img src="${r.image_url}" style="width:100%; border-radius:8px; margin-bottom:1rem;" />` : ''}
+      <p style="color:var(--text-2); margin-bottom:1rem;">${r.description || ''}</p>
+      <div class="recipe-macros-grid">
+        <div class="recipe-macro"><span class="recipe-macro-val">${r.calories}</span><span class="recipe-macro-label">Cal</span></div>
+        <div class="recipe-macro"><span class="recipe-macro-val">${r.protein_g}g</span><span class="recipe-macro-label">Prot</span></div>
+        <div class="recipe-macro"><span class="recipe-macro-val">${r.carbs_g}g</span><span class="recipe-macro-label">Carbs</span></div>
+        <div class="recipe-macro"><span class="recipe-macro-val">${r.fats_g}g</span><span class="recipe-macro-label">Grasas</span></div>
+      </div>
+      <div style="margin:1rem 0;">
+        <strong>Ingredientes (${r.servings} porciones)</strong>
+        <ul style="margin-top:0.5rem; padding-left:1.5rem; color:var(--text-2);">
+          ${(r.ingredients || []).map((i) => `<li>${i}</li>`).join('')}
+        </ul>
+      </div>
+      <div style="margin:1rem 0;">
+        <strong>Preparación</strong>
+        <ol style="margin-top:0.5rem; padding-left:1.5rem; color:var(--text-2);">
+          ${(r.instructions || []).map((i) => `<li>${i}</li>`).join('')}
+        </ol>
+      </div>
+      <button class="btn-primary" onclick="addRecipeToMeals('${r.id}')">Agregar a comidas de hoy</button>
+    `;
+  } catch (err) { document.getElementById('recipe-detail-view').innerHTML = `<div class="auth-error show">${err.message}</div>`; }
+}
+
+async function addRecipeToMeals(recipeId) {
+  try {
+    const data = await apiCall(`/recipes/${recipeId}`);
+    const r = data.recipe;
+    await apiCall('/meals', 'POST', {
+      name: r.name,
+      meal_type: r.meal_type === 'ANY' ? 'SNACK' : r.meal_type,
+      calories: r.calories,
+      protein_g: r.protein_g,
+      carbs_g: r.carbs_g,
+      fats_g: r.fats_g,
+    });
+    closeModal();
+    alert('Receta agregada a comidas de hoy');
+  } catch (err) { alert(err.message); }
+}
+
+function openRecipeModal() {
+  showModal(`
+    <div class="modal-header">
+      <h2>Nueva receta</h2>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <form onsubmit="saveRecipe(event)">
+      <div class="form-group"><label>Nombre</label><input type="text" class="form-input" id="recipe-name" required /></div>
+      <div class="form-group"><label>Descripción</label><textarea class="form-input" id="recipe-desc" rows="2"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>Calorías</label><input type="number" class="form-input" id="recipe-cal" value="0" /></div>
+        <div class="form-group"><label>Proteína (g)</label><input type="number" class="form-input" id="recipe-protein" value="0" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Carbs (g)</label><input type="number" class="form-input" id="recipe-carbs" value="0" /></div>
+        <div class="form-group"><label>Grasas (g)</label><input type="number" class="form-input" id="recipe-fats" value="0" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Tiempo (min)</label><input type="number" class="form-input" id="recipe-time" value="15" /></div>
+        <div class="form-group"><label>Porciones</label><input type="number" class="form-input" id="recipe-servings" value="1" /></div>
+      </div>
+      <div class="form-group"><label>Tipo</label><select class="form-input" id="recipe-meal-type"><option value="ANY">General</option><option value="BREAKFAST">Desayuno</option><option value="LUNCH">Comida</option><option value="DINNER">Cena</option><option value="SNACK">Snack</option><option value="POST_WORKOUT">Post-entreno</option></select></div>
+      <div class="form-group"><label>Ingredientes (uno por línea)</label><textarea class="form-input" id="recipe-ingredients" rows="4" placeholder="200g pollo&#10;1 taza arroz"></textarea></div>
+      <div class="form-group"><label>Preparación (un paso por línea)</label><textarea class="form-input" id="recipe-instructions" rows="4" placeholder="Cocinar el arroz&#10;Sazonar el pollo"></textarea></div>
+      <button type="submit" class="btn-primary">Guardar receta</button>
+    </form>
+  `);
+}
+
+async function saveRecipe(e) {
+  e.preventDefault();
+  try {
+    await apiCall('/recipes', 'POST', {
+      name: document.getElementById('recipe-name').value,
+      description: document.getElementById('recipe-desc').value,
+      calories: parseInt(document.getElementById('recipe-cal').value) || 0,
+      protein_g: parseInt(document.getElementById('recipe-protein').value) || 0,
+      carbs_g: parseInt(document.getElementById('recipe-carbs').value) || 0,
+      fats_g: parseInt(document.getElementById('recipe-fats').value) || 0,
+      prep_time_min: parseInt(document.getElementById('recipe-time').value) || 0,
+      servings: parseInt(document.getElementById('recipe-servings').value) || 1,
+      meal_type: document.getElementById('recipe-meal-type').value,
+      ingredients: document.getElementById('recipe-ingredients').value.split('\n').filter((l) => l.trim()),
+      instructions: document.getElementById('recipe-instructions').value.split('\n').filter((l) => l.trim()),
+    });
+    closeModal();
+    loadRecipes();
+  } catch (err) { alert(err.message); }
+}
+
+// ===== Community =====
+let communityMediaData = null;
+let communityMediaType = null;
+
+const ROLE_LABELS = { NORMAL: 'Usuario', MODERATOR: 'Moderador', ATHLETE: 'Atleta destacado', ADMIN: 'Admin' };
+const ROLE_BADGES = { NORMAL: '', MODERATOR: 'community-badge-mod', ATHLETE: 'community-badge-athlete', ADMIN: 'community-badge-mod' };
+
+async function loadCommunityFeed(isPolling) {
+  try {
+    const data = await apiCall('/community/feed');
+    const feed = document.getElementById('community-feed');
+    if (!feed) return;
+
+    let composerText = '';
+    if (isPolling) {
+      const input = document.getElementById('community-post-input');
+      if (input) composerText = input.value;
+    }
+
+    if (!data.posts || data.posts.length === 0) {
+      feed.innerHTML = emptyState('No hay publicaciones aún. ¡Sé el primero!');
+      return;
+    }
+
+    feed.innerHTML = data.posts.map((p) => renderCommunityPost(p)).join('');
+
+    if (composerText) {
+      const input = document.getElementById('community-post-input');
+      if (input) input.value = composerText;
+    }
+  } catch (err) { console.error('Community feed error:', err); }
+}
+
+function renderCommunityPost(p) {
+  const roleBadge = p.user.role && p.user.role !== 'NORMAL'
+    ? `<span class="community-role-badge ${ROLE_BADGES[p.user.role] || ''}">${ROLE_LABELS[p.user.role] || p.user.role}</span>`
+    : '';
+  const avatar = p.user.profile_photo
+    ? `<img src="${p.user.profile_photo}" class="community-avatar" />`
+    : `<div class="community-avatar community-avatar-text">${p.user.username.charAt(0).toUpperCase()}</div>`;
+
+  let mediaHtml = '';
+  if (p.media_url) {
+    if (p.media_type === 'VIDEO') {
+      mediaHtml = `<video src="${p.media_url}" controls class="community-media"></video>`;
+    } else {
+      mediaHtml = `<img src="${p.media_url}" class="community-media" onclick="viewMealPhoto('${p.media_url}')" />`;
+    }
+  }
+
+  const reactions = (p.reactions || []);
+  const reactionEmojis = ['🔥', '💪', '❤️', '👏', '🚀'];
+  const reactionCounts = reactionEmojis.map((emoji) => ({
+    emoji,
+    count: reactions.filter((r) => r.emoji === emoji).length,
+  }));
+
+  return `
+    <div class="community-post">
+      <div class="community-post-header">
+        ${avatar}
+        <div class="community-post-user">
+          <div class="community-post-name">${p.user.username} ${roleBadge}</div>
+          <div class="community-post-time">${new Date(p.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+        </div>
+        ${p.user_id === currentUser.id || (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN') ? `<button class="community-delete-btn" onclick="deleteCommunityPost('${p.id}')">×</button>` : ''}
+      </div>
+      ${p.content ? `<div class="community-post-content">${escapeHtml(p.content)}</div>` : ''}
+      ${mediaHtml}
+      <div class="community-reactions">
+        ${reactionCounts.map((r) => `
+          <button class="reaction-btn ${r.count > 0 ? 'has-count' : ''}" onclick="reactToPost('${p.id}', '${r.emoji}')">
+            ${r.emoji} ${r.count > 0 ? `<span class="reaction-count">${r.count}</span>` : ''}
+          </button>
+        `).join('')}
+      </div>
+      <div class="community-replies">
+        ${(p.replies || []).map((r) => renderCommunityReply(r, p.id)).join('')}
+        <div class="community-reply-input">
+          <input type="text" class="form-input" placeholder="Responder..." id="reply-input-${p.id}" onkeypress="if(event.key==='Enter'){replyToPost('${p.id}');}" />
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderCommunityReply(r, postId) {
+  const roleBadge = r.user.role && r.user.role !== 'NORMAL'
+    ? `<span class="community-role-badge ${ROLE_BADGES[r.user.role] || ''}">${ROLE_LABELS[r.user.role] || r.user.role}</span>`
+    : '';
+  const avatar = r.user.profile_photo
+    ? `<img src="${r.user.profile_photo}" class="community-avatar community-avatar-sm" />`
+    : `<div class="community-avatar community-avatar-sm community-avatar-text">${r.user.username.charAt(0).toUpperCase()}</div>`;
+
+  return `
+    <div class="community-reply">
+      ${avatar}
+      <div class="community-reply-body">
+        <div class="community-reply-name">${r.user.username} ${roleBadge}</div>
+        ${r.media_url ? `<img src="${r.media_url}" class="community-reply-media" onclick="viewMealPhoto('${r.media_url}')" />` : ''}
+        <div class="community-reply-text">${escapeHtml(r.content)}</div>
+        <div class="community-reply-time">${new Date(r.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+      </div>
+    </div>
+  `;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+async function postCommunity() {
+  const content = document.getElementById('community-post-input').value.trim();
+  if (!content && !communityMediaData) { alert('Escribe algo o sube una foto'); return; }
+  try {
+    await apiCall('/community/posts', 'POST', {
+      content,
+      media_url: communityMediaData || null,
+      media_type: communityMediaType || 'TEXT',
+    });
+    document.getElementById('community-post-input').value = '';
+    communityMediaData = null;
+    communityMediaType = null;
+    document.getElementById('community-media-preview').style.display = 'none';
+    document.getElementById('community-media-preview').innerHTML = '';
+    document.getElementById('community-media-input').value = '';
+  } catch (err) { alert(err.message); }
+}
+
+async function replyToPost(postId) {
+  const input = document.getElementById(`reply-input-${postId}`);
+  const content = input.value.trim();
+  if (!content) return;
+  try {
+    await apiCall(`/community/posts/${postId}/replies`, 'POST', { content });
+    input.value = '';
+  } catch (err) { alert(err.message); }
+}
+
+async function reactToPost(postId, emoji) {
+  try {
+    await apiCall(`/community/posts/${postId}/react`, 'POST', { emoji });
+  } catch (err) { console.error('React error:', err); }
+}
+
+async function deleteCommunityPost(postId) {
+  if (!confirm('¿Eliminar esta publicación?')) return;
+  try {
+    await apiCall(`/community/posts/${postId}`, 'DELETE');
+  } catch (err) { alert(err.message); }
+}
+
+function handleCommunityMedia(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { alert('El archivo no puede pesar más de 5MB'); return; }
+  communityMediaType = file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE';
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    communityMediaData = e.target.result;
+    const preview = document.getElementById('community-media-preview');
+    preview.style.display = 'block';
+    if (communityMediaType === 'VIDEO') {
+      preview.innerHTML = `<video src="${communityMediaData}" style="width:100%; height:100%; object-fit:cover;"></video>`;
+    } else {
+      preview.innerHTML = `<img src="${communityMediaData}" style="width:100%; height:100%; object-fit:cover;" />`;
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function searchCommunityUsers() {
+  const q = document.getElementById('community-user-search').value.trim();
+  const results = document.getElementById('community-user-results');
+  if (q.length < 2) { results.innerHTML = ''; return; }
+  try {
+    const data = await apiCall(`/community/users/search?q=${encodeURIComponent(q)}`);
+    results.innerHTML = (data.users || []).map((u) => `
+      <div class="community-user-result" onclick="viewUserProfile('${u.id}')">
+        ${u.profile_photo ? `<img src="${u.profile_photo}" class="community-avatar community-avatar-sm" />` : `<div class="community-avatar community-avatar-sm community-avatar-text">${u.username.charAt(0).toUpperCase()}</div>`}
+        <span>${u.username}</span>
+        ${u.role !== 'NORMAL' ? `<span class="community-role-badge ${ROLE_BADGES[u.role] || ''}">${ROLE_LABELS[u.role] || u.role}</span>` : ''}
+      </div>
+    `).join('');
+  } catch (err) { console.error('User search error:', err); }
+}
+
+function viewUserProfile(userId) {
+  showModal(`<div id="user-profile-view">${loadingHtml()}</div>`);
+  loadUserProfileDetail(userId);
+}
+
+async function loadUserProfileDetail(userId) {
+  try {
+    const data = await apiCall(`/community/profile/${userId}`);
+    const u = data.user;
+    const avatar = u.profile_photo
+      ? `<img src="${u.profile_photo}" class="community-avatar community-avatar-lg" />`
+      : `<div class="community-avatar community-avatar-lg community-avatar-text">${u.username.charAt(0).toUpperCase()}</div>`;
+    const roleBadge = u.role && u.role !== 'NORMAL'
+      ? `<span class="community-role-badge ${ROLE_BADGES[u.role] || ''}">${ROLE_LABELS[u.role] || u.role}</span>`
+      : '';
+
+    document.getElementById('user-profile-view').innerHTML = `
+      <div class="modal-header">
+        <h2>Perfil de ${u.username}</h2>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div style="text-align:center; margin-bottom:1.5rem;">
+        ${avatar}
+        <h3 style="margin-top:0.5rem;">${u.username} ${roleBadge}</h3>
+        ${u.bio ? `<p style="color:var(--text-2);">${u.bio}</p>` : ''}
+      </div>
+      <div class="community-profile-stats">
+        <div class="community-profile-stat"><span class="community-profile-stat-val">${u.post_count || 0}</span><span class="community-profile-stat-label">Posts</span></div>
+        <div class="community-profile-stat"><span class="community-profile-stat-val">${u.routine_count || 0}</span><span class="community-profile-stat-label">Rutinas</span></div>
+      </div>
+      <div style="margin-top:1rem;">
+        ${u.goal ? `<div class="exercise-row"><span class="exercise-name">Objetivo</span><span class="exercise-stat">${goalLabel(u.goal)}</span></div>` : ''}
+        ${u.body_type ? `<div class="exercise-row"><span class="exercise-name">Tipo de cuerpo</span><span class="exercise-stat">${bodyTypeLabel(u.body_type)}</span></div>` : ''}
+        ${u.height_cm ? `<div class="exercise-row"><span class="exercise-name">Altura</span><span class="exercise-stat">${u.height_cm} cm</span></div>` : ''}
+        ${u.weight_kg ? `<div class="exercise-row"><span class="exercise-name">Peso</span><span class="exercise-stat">${u.weight_kg} kg</span></div>` : ''}
+      </div>
+    `;
+  } catch (err) { document.getElementById('user-profile-view').innerHTML = `<div class="auth-error show">${err.message}</div>`; }
 }
 
 // ===== Init =====
