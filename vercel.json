@@ -3,7 +3,10 @@
   "builds": [
     {
       "src": "src/server.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["public/**", "exercises-dataset/**", "prisma/**"]
+      }
     }
   ],
   "routes": [
@@ -15,6 +18,8 @@
   ],
   "env": {
     "JWT_SECRET": "@jwt_secret",
-    "OPENAI_API_KEY": "@openai_api_key"
+    "OPENAI_API_KEY": "@openai_api_key",
+    "DATABASE_URL": "@database_url",
+    "DATABASE_PROVIDER": "postgresql"
   }
 }
