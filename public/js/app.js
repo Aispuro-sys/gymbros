@@ -1,5 +1,5 @@
 const API = '/api';
-let token = localStorage.getItem('gym_bros_token');
+let token = localStorage.getItem('talos_forge_token');
 let currentUser = null;
 let exerciseLimit = 24;
 let routineView = 'list';
@@ -12,14 +12,14 @@ let pollingIntervals = {};
 
 // ===== Theme =====
 function initTheme() {
-  const saved = localStorage.getItem('gym_bros_theme') || 'dark';
+  const saved = localStorage.getItem('talos_forge_theme') || 'dark';
   document.documentElement.setAttribute('data-theme', saved);
 }
 function toggleTheme() {
   const current = document.documentElement.getAttribute('data-theme') || 'dark';
   const next = current === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('gym_bros_theme', next);
+  localStorage.setItem('talos_forge_theme', next);
 }
 initTheme();
 
@@ -59,7 +59,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
       password: document.getElementById('login-password').value,
     });
     token = data.token;
-    localStorage.setItem('gym_bros_token', token);
+    localStorage.setItem('talos_forge_token', token);
     currentUser = data.user;
     showDashboard();
   } catch (err) { showAuthError('login-error', err.message); }
@@ -81,7 +81,7 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
       gender: document.getElementById('reg-gender').value || 'M',
     });
     token = data.token;
-    localStorage.setItem('gym_bros_token', token);
+    localStorage.setItem('talos_forge_token', token);
     currentUser = data.user;
     showDashboard();
   } catch (err) { showAuthError('register-error', err.message); }
@@ -89,7 +89,7 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
 
 function logout() {
   token = null; currentUser = null;
-  localStorage.removeItem('gym_bros_token');
+  localStorage.removeItem('talos_forge_token');
   document.getElementById('dashboard-page').style.display = 'none';
   document.getElementById('auth-page').style.display = 'flex';
 }

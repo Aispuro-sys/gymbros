@@ -1,7 +1,7 @@
 {
-  "name": "gym-bros",
+  "name": "talos-forge",
   "version": "1.0.0",
-  "description": "Gym Bros - AI Fitness Coach & Social Platform",
+  "description": "Talos Forge - Your Progress. Fitness app: entrenamiento, nutrición y comunidad sin fricción.",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

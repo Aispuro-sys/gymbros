@@ -39,5 +39,5 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Gym Bros running on http://localhost:${PORT}`);
+  console.log(`Talos Forge running on http://localhost:${PORT}`);
 });
