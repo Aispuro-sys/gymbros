@@ -2129,7 +2129,19 @@ async function generateShoppingListFromMeals() {
     shoppingListRecipes = data.recipes || [];
     shoppingListMeals = data.meals || [];
     shoppingListRecipeIds = (data.recipes || []).map((r) => r.id);
-    renderShoppingList();
+
+    const modalView = document.getElementById('shopping-list-view');
+    if (modalView) {
+      shoppingStep = 'ingredients';
+      await saveShoppingListToBackend();
+      await renderShoppingList();
+    } else {
+      const pageContent = document.getElementById('shopping-page-content');
+      if (pageContent) {
+        await saveShoppingListToBackend();
+        await loadShoppingPage();
+      }
+    }
   } catch (err) { alert(err.message); }
 }
 
@@ -2139,7 +2151,21 @@ async function generateShoppingListFromAI() {
     if (data.recipes && data.recipes.length > 0) {
       shoppingListRecipeIds = data.recipes.map((r) => r.id);
       shoppingListMeals = [];
-      renderShoppingList();
+
+      const modalView = document.getElementById('shopping-list-view');
+      if (modalView) {
+        shoppingStep = 'dishes';
+        await renderShoppingList();
+      } else {
+        const pageContent = document.getElementById('shopping-page-content');
+        if (pageContent) {
+          const ingData = await apiCall('/recipes/shopping-list', 'POST', { recipeIds: shoppingListRecipeIds });
+          shoppingListItems = ingData.ingredients || [];
+          shoppingListRecipes = ingData.recipes || [];
+          await saveShoppingListToBackend();
+          await loadShoppingPage();
+        }
+      }
     } else {
       alert('No hay recetas recomendadas disponibles');
     }
@@ -2364,40 +2390,52 @@ async function loadShoppingPage() {
       const totalItems = shoppingListItems.length;
       const checkedItems = shoppingListItems.filter((i) => i.checked).length;
       const progress = totalItems > 0 ? Math.round((checkedItems / totalItems) * 100) : 0;
+      const remaining = totalItems - checkedItems;
 
       content.innerHTML = `
-        <div class="card" style="margin-bottom:1rem;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-            <strong>${savedShoppingList.name}</strong>
-            <span style="font-size:0.85rem; color:var(--text-2);">${checkedItems}/${totalItems} comprados</span>
-          </div>
-          <div style="background:var(--surface); border-radius:8px; height:8px; overflow:hidden;">
-            <div style="background:var(--accent); height:100%; width:${progress}%; transition:width 0.3s;"></div>
+        <div class="card" style="margin-bottom:1rem; background:linear-gradient(135deg, var(--accent), #1565c0); color:#fff; border:none;">
+          <div style="display:flex; align-items:center; gap:1rem;">
+            <div style="position:relative; width:64px; height:64px; flex-shrink:0;">
+              <svg width="64" height="64" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="6"/>
+                <circle cx="32" cy="32" r="28" fill="none" stroke="#fff" stroke-width="6" stroke-dasharray="${2 * Math.PI * 28}" stroke-dashoffset="${2 * Math.PI * 28 * (1 - progress / 100)}" transform="rotate(-90 32 32)" stroke-linecap="round" style="transition:stroke-dashoffset 0.5s;"/>
+              </svg>
+              <div style="position:absolute; top:0; left:0; width:64px; height:64px; display:flex; align-items:center; justify-content:center; font-size:0.85rem; font-weight:700;">${progress}%</div>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:1.1rem; font-weight:700;">${savedShoppingList.name}</div>
+              <div style="font-size:0.85rem; opacity:0.85; margin-top:2px;">${checkedItems} de ${totalItems} comprados · ${remaining} pendiente(s)</div>
+            </div>
           </div>
         </div>
 
-        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1rem;">
-          <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="shoppingPageAddRecipes()">+ Agregar recetas</button>
-          <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="generateShoppingListFromMeals()">🍽️ Desde comidas</button>
-          <button class="btn-primary" style="width:auto; padding:8px 14px;" onclick="downloadShoppingListPDF()">📄 PDF</button>
-          <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="sendShoppingListWhatsApp()">📱 WhatsApp</button>
-          <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="shareShoppingList()">🔗 Compartir</button>
-          <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="clearShoppingListPage()">🗑️ Limpiar</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1.5rem;">
+          <button class="btn-secondary" style="width:auto; padding:10px 16px; display:flex; align-items:center; gap:6px;" onclick="shoppingPageAddRecipes()">➕ Recetas</button>
+          <button class="btn-secondary" style="width:auto; padding:10px 16px; display:flex; align-items:center; gap:6px;" onclick="generateShoppingListFromMeals()">🍽️ Comidas hoy</button>
+          <button class="btn-secondary" style="width:auto; padding:10px 16px; display:flex; align-items:center; gap:6px;" onclick="generateShoppingListFromAI()">🤖 Con IA</button>
+          <button class="btn-primary" style="width:auto; padding:10px 16px; display:flex; align-items:center; gap:6px;" onclick="downloadShoppingListPDF()">📄 PDF</button>
+          <button class="btn-secondary" style="width:auto; padding:10px 16px; display:flex; align-items:center; gap:6px;" onclick="sendShoppingListWhatsApp()">📱 WhatsApp</button>
+          <button class="btn-secondary" style="width:auto; padding:10px 16px; display:flex; align-items:center; gap:6px;" onclick="shareShoppingList()">🔗 Compartir</button>
+          <button class="btn-secondary" style="width:auto; padding:10px 16px; display:flex; align-items:center; gap:6px; color:var(--danger);" onclick="clearShoppingListPage()">🗑️ Limpiar</button>
         </div>
 
         <div class="card">
           <div class="card-header">
-            <div class="card-title">Lista de ingredientes</div>
+            <div class="card-title">🛍️ Ingredientes</div>
+            <div style="font-size:0.8rem; color:var(--text-2);">${remaining} por comprar</div>
           </div>
           <div id="shopping-page-items">
             ${shoppingListItems.map((item, idx) => `
-              <div class="list-item" style="display:flex; align-items:center; gap:8px;">
-                <input type="checkbox" id="page-shop-check-${idx}" ${item.checked ? 'checked' : ''} onchange="togglePageShoppingItem(${idx})" style="width:20px; height:20px; flex-shrink:0; cursor:pointer;" />
-                <div style="flex:1;">
-                  <div class="list-item-name" style="${item.checked ? 'text-decoration:line-through; opacity:0.5;' : ''}">${item.name}</div>
-                  ${item.count > 1 ? `<div class="list-item-meta">En ${item.count} receta(s)</div>` : ''}
+              <div class="list-item" style="display:flex; align-items:center; gap:10px; padding:10px 8px; border-bottom:1px solid var(--border); ${item.checked ? 'opacity:0.6;' : ''}">
+                <label style="display:flex; align-items:center; cursor:pointer; flex-shrink:0;">
+                  <input type="checkbox" id="page-shop-check-${idx}" ${item.checked ? 'checked' : ''} onchange="togglePageShoppingItem(${idx})" style="width:22px; height:22px; cursor:pointer; accent-color:var(--accent);" />
+                </label>
+                <div style="flex:1; min-width:0;">
+                  <div class="list-item-name" style="${item.checked ? 'text-decoration:line-through;' : ''} font-size:0.95rem;">${item.name}</div>
+                  ${item.count > 1 ? `<div class="list-item-meta" style="font-size:0.75rem;">📦 En ${item.count} receta(s)</div>` : ''}
                 </div>
-                <input type="text" placeholder="Cant." value="${item.quantity || ''}" onchange="updatePageShoppingItemQty(${idx}, this.value)" style="width:60px; padding:4px 6px; font-size:0.8rem; border:1px solid var(--border); border-radius:4px; background:var(--bg);" />
+                ${item.quantity ? `<div style="font-size:0.8rem; color:var(--text-2); background:var(--surface); padding:3px 8px; border-radius:6px; white-space:nowrap;">${item.quantity}</div>` : `<input type="text" placeholder="Cant." onchange="updatePageShoppingItemQty(${idx}, this.value)" style="width:56px; padding:4px 6px; font-size:0.78rem; border:1px solid var(--border); border-radius:6px; background:var(--bg); text-align:center;" />`}
+                ${item.checked ? '<span style="font-size:1.1rem;">✅</span>' : ''}
               </div>
             `).join('')}
           </div>
@@ -2405,14 +2443,15 @@ async function loadShoppingPage() {
       `;
     } else {
       content.innerHTML = `
-        <div class="empty-state" style="margin-bottom:1rem;">
-          <div style="font-size:3rem; margin-bottom:0.5rem;">🛒</div>
-          <div class="empty-state-text">No tienes una lista de supermercado activa</div>
-        </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
-          <button class="btn-primary" style="width:auto; padding:12px 20px;" onclick="shoppingPageAddRecipes()">+ Crear lista con recetas</button>
-          <button class="btn-secondary" style="width:auto; padding:12px 20px;" onclick="generateShoppingListFromMeals()">🍽️ Desde comidas de hoy</button>
-          <button class="btn-secondary" style="width:auto; padding:12px 20px;" onclick="generateShoppingListFromAI()">🤖 Con IA</button>
+        <div class="card" style="text-align:center; padding:3rem 1.5rem; margin-bottom:1.5rem;">
+          <div style="font-size:4rem; margin-bottom:1rem;">🛒</div>
+          <h2 style="margin-bottom:0.5rem;">Lista de Supermercado</h2>
+          <p style="color:var(--text-2); font-size:0.9rem; margin-bottom:1.5rem;">Crea tu lista de compras seleccionando recetas, usando tus comidas de hoy o dejando que la IA te recomiende</p>
+          <div style="display:flex; flex-direction:column; gap:10px; max-width:300px; margin:0 auto;">
+            <button class="btn-primary" style="padding:14px 20px; display:flex; align-items:center; justify-content:center; gap:8px; font-size:0.95rem;" onclick="shoppingPageAddRecipes()">➕ Crear lista con recetas</button>
+            <button class="btn-secondary" style="padding:14px 20px; display:flex; align-items:center; justify-content:center; gap:8px; font-size:0.95rem;" onclick="generateShoppingListFromMeals()">🍽️ Desde comidas de hoy</button>
+            <button class="btn-secondary" style="padding:14px 20px; display:flex; align-items:center; justify-content:center; gap:8px; font-size:0.95rem;" onclick="generateShoppingListFromAI()">🤖 Recomendar con IA</button>
+          </div>
         </div>
       `;
     }
