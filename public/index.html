@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gym Bros — AI Fitness Coach</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23ffffff'/%3E%3Ctext x='50' y='72' font-size='60' font-weight='900' text-anchor='middle' fill='%23000000' font-family='Arial'%3EG%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+
+  <!-- ===== AUTH PAGE ===== -->
+  <div id="auth-page" class="auth-container">
+    <div class="auth-brand">
+      <div class="auth-brand-content">
+        <div class="brand-logo">
+          <div class="brand-logo-icon">G</div>
+          <div class="brand-logo-text">Gym Bros</div>
+        </div>
+        <h1>Tu entrenador IA. Tu nutrición. Tu equipo.</h1>
+        <p>Rutinas generadas por IA basadas en 1,324 ejercicios. Tracking de macros, suplementación y equipos sincronizados. Sin fricción.</p>
+        <div class="brand-features">
+          <div class="brand-feature">
+            <div class="brand-feature-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </div>
+            <span>IA genera rutinas según tu biometría y objetivo</span>
+          </div>
+          <div class="brand-feature">
+            <div class="brand-feature-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 12l4-4 4 4 6-6"/></svg>
+            </div>
+            <span>Macros, suplementos y progreso en vistas minimalistas</span>
+          </div>
+          <div class="brand-feature">
+            <div class="brand-feature-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <span>Equipos privados con rutinas sincronizadas</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="auth-form-side">
+      <div class="auth-form-wrapper">
+        <div id="login-view">
+          <h2>Bienvenido</h2>
+          <p class="subtitle">Inicia sesión para continuar</p>
+          <div id="login-error" class="auth-error"></div>
+          <form id="login-form">
+            <div class="form-group">
+              <label>Correo</label>
+              <input type="email" class="form-input" id="login-email" placeholder="tu@email.com" required />
+            </div>
+            <div class="form-group">
+              <label>Contraseña</label>
+              <input type="password" class="form-input" id="login-password" placeholder="••••••••" required />
+            </div>
+            <button type="submit" class="btn-primary">Iniciar sesión</button>
+          </form>
+          <p class="auth-switch">¿No tienes cuenta? <a onclick="showRegister()">Regístrate</a></p>
+          <div class="demo-credentials">
+            <strong>Demo:</strong> admin@gymbros.com / admin123
+          </div>
+        </div>
+
+        <div id="register-view" style="display:none;">
+          <h2>Crear cuenta</h2>
+          <p class="subtitle">Empieza tu transformación</p>
+          <div id="register-error" class="auth-error"></div>
+          <form id="register-form">
+            <div class="form-group">
+              <label>Usuario</label>
+              <input type="text" class="form-input" id="reg-username" placeholder="bro_lifter" required />
+            </div>
+            <div class="form-group">
+              <label>Correo</label>
+              <input type="email" class="form-input" id="reg-email" placeholder="tu@email.com" required />
+            </div>
+            <div class="form-group">
+              <label>Contraseña</label>
+              <input type="password" class="form-input" id="reg-password" placeholder="Mín. 6 caracteres" required minlength="6" />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Edad</label>
+                <input type="number" class="form-input" id="reg-age" placeholder="24" min="14" max="100" />
+              </div>
+              <div class="form-group">
+                <label>Altura (cm)</label>
+                <input type="number" class="form-input" id="reg-height" placeholder="178" step="0.1" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Peso (kg)</label>
+                <input type="number" class="form-input" id="reg-weight" placeholder="85" step="0.1" />
+              </div>
+              <div class="form-group">
+                <label>Objetivo</label>
+                <select class="form-input" id="reg-goal">
+                  <option value="MAINTENANCE">Mantener</option>
+                  <option value="BULKING">Volumen</option>
+                  <option value="CUTTING">Definición</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Tipo de cuerpo</label>
+              <div class="body-type-grid" id="reg-body-type-grid">
+                <div class="body-type-card" data-body-type="ECTOMORPH" onclick="selectBodyType('reg', 'ECTOMORPH')">
+                  <svg class="body-type-svg" viewBox="0 0 80 100" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="40" cy="15" r="8"/>
+                    <line x1="40" y1="23" x2="40" y2="50"/>
+                    <line x1="28" y1="30" x2="52" y2="30"/>
+                    <line x1="40" y1="50" x2="32" y2="75"/>
+                    <line x1="40" y1="50" x2="48" y2="75"/>
+                    <line x1="32" y1="75" x2="30" y2="95"/>
+                    <line x1="48" y1="75" x2="50" y2="95"/>
+                  </svg>
+                  <div class="body-type-name">Ectomorfo</div>
+                  <div class="body-type-desc">Delgado, metabolismo rápido. Difícil ganar peso.</div>
+                </div>
+                <div class="body-type-card" data-body-type="MESOMORPH" onclick="selectBodyType('reg', 'MESOMORPH')">
+                  <svg class="body-type-svg" viewBox="0 0 80 100" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="40" cy="15" r="8"/>
+                    <line x1="40" y1="23" x2="40" y2="48"/>
+                    <line x1="22" y1="32" x2="58" y2="32"/>
+                    <line x1="22" y1="32" x2="20" y2="48"/>
+                    <line x1="58" y1="32" x2="60" y2="48"/>
+                    <line x1="40" y1="48" x2="32" y2="75"/>
+                    <line x1="40" y1="48" x2="48" y2="75"/>
+                    <line x1="32" y1="75" x2="30" y2="95"/>
+                    <line x1="48" y1="75" x2="50" y2="95"/>
+                  </svg>
+                  <div class="body-type-name">Mesomorfo</div>
+                  <div class="body-type-desc">Atlético, responde bien al entrenamiento. Estructura muscular natural.</div>
+                </div>
+                <div class="body-type-card" data-body-type="ENDOMORPH" onclick="selectBodyType('reg', 'ENDOMORPH')">
+                  <svg class="body-type-svg" viewBox="0 0 80 100" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="40" cy="15" r="9"/>
+                    <line x1="40" y1="24" x2="40" y2="48"/>
+                    <line x1="18" y1="34" x2="62" y2="34"/>
+                    <line x1="18" y1="34" x2="16" y2="50"/>
+                    <line x1="62" y1="34" x2="64" y2="50"/>
+                    <line x1="40" y1="48" x2="30" y2="75"/>
+                    <line x1="40" y1="48" x2="50" y2="75"/>
+                    <line x1="30" y1="75" x2="28" y2="95"/>
+                    <line x1="50" y1="75" x2="52" y2="95"/>
+                  </svg>
+                  <div class="body-type-name">Endomorfo</div>
+                  <div class="body-type-desc">Tendencia a ganar grasa. Metabolismo más lento. Estructura ósea ancha.</div>
+                </div>
+              </div>
+              <input type="hidden" id="reg-body-type" value="" />
+            </div>
+            <button type="submit" class="btn-primary">Crear cuenta</button>
+          </form>
+          <p class="auth-switch">¿Ya tienes cuenta? <a onclick="showLogin()">Inicia sesión</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DASHBOARD ===== -->
+  <div id="dashboard-page" class="dashboard" style="display:none;">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-icon">G</div>
+          <div class="sidebar-logo-text">Gym Bros</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-page="overview" onclick="navigateTo('overview')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span>Resumen</span>
+        </button>
+        <button class="nav-item" data-page="ai-coach" onclick="navigateTo('ai-coach')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 0 0-10 10 10 10 0 0 0 10 10 10 10 0 0 0 10-10 10 10 0 0 0-10-10z"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+          <span>IA Coach</span>
+        </button>
+        <button class="nav-item" data-page="routines" onclick="navigateTo('routines')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 6.5h11"/><path d="M6.5 17.5h11"/><path d="M6.5 12h11"/><rect x="2" y="3" width="20" height="18" rx="2"/></svg>
+          <span>Rutinas</span>
+        </button>
+        <button class="nav-item" data-page="exercises" onclick="navigateTo('exercises')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+          <span>Ejercicios</span>
+        </button>
+        <button class="nav-item" data-page="nutrition" onclick="navigateTo('nutrition')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11h18M3 15h18M3 7h18M3 19h18"/></svg>
+          <span>Nutrición</span>
+        </button>
+        <button class="nav-item" data-page="supplements" onclick="navigateTo('supplements')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 2h4v4l-1 4h-2l-1-4V2z"/><path d="M9 10h6v10a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2V10z"/></svg>
+          <span>Suplementos</span>
+        </button>
+        <button class="nav-item" data-page="teams" onclick="navigateTo('teams')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Equipos</span>
+        </button>
+        <button class="nav-item" data-page="profile" onclick="navigateTo('profile')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Perfil</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-card">
+          <div class="user-avatar" id="user-avatar">U</div>
+          <div class="user-info">
+            <div class="user-name" id="user-name">Usuario</div>
+            <div class="user-goal" id="user-goal">Mantener</div>
+          </div>
+          <button class="theme-toggle" onclick="toggleTheme()" title="Cambiar tema">
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+          <button class="logout-btn" onclick="logout()" title="Cerrar sesión">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Mobile bottom nav -->
+    <nav class="bottom-nav" id="bottom-nav">
+      <button class="bottom-nav-item active" data-page="overview" onclick="navigateTo('overview')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Inicio</span>
+      </button>
+      <button class="bottom-nav-item" data-page="ai-coach" onclick="navigateTo('ai-coach')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 0 0-10 10 10 10 0 0 0 10 10 10 10 0 0 0 10-10 10 10 0 0 0-10-10z"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+        <span>IA</span>
+      </button>
+      <button class="bottom-nav-item" data-page="routines" onclick="navigateTo('routines')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 6.5h11"/><path d="M6.5 17.5h11"/><path d="M6.5 12h11"/><rect x="2" y="3" width="20" height="18" rx="2"/></svg>
+        <span>Rutinas</span>
+      </button>
+      <button class="bottom-nav-item" data-page="nutrition" onclick="navigateTo('nutrition')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11h18M3 15h18M3 7h18M3 19h18"/></svg>
+        <span>Nutri</span>
+      </button>
+      <button class="bottom-nav-item" data-page="profile" onclick="navigateTo('profile')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Perfil</span>
+      </button>
+    </nav>
+
+    <main class="main-content">
+      <!-- Overview -->
+      <section id="page-overview" class="page-section active">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Resumen</h1>
+            <div class="page-date" id="today-date"></div>
+          </div>
+        </div>
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="content-grid">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Rutina reciente</div>
+              <button class="card-action" onclick="navigateTo('routines')">Ver todas</button>
+            </div>
+            <div id="overview-routine"></div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Macros de hoy</div>
+              <button class="card-action" onclick="navigateTo('nutrition')">Registrar</button>
+            </div>
+            <div id="overview-macros"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Suplementos de hoy</div>
+            <button class="card-action" onclick="navigateTo('supplements')">Gestionar</button>
+          </div>
+          <div id="overview-supplements"></div>
+        </div>
+      </section>
+
+      <!-- AI Coach -->
+      <section id="page-ai-coach" class="page-section">
+        <div class="page-header">
+          <h1 class="page-title">IA Coach</h1>
+        </div>
+        <div class="ai-banner" id="ai-status-banner">
+          <div class="ai-banner-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 0 0-10 10 10 10 0 0 0 10 10 10 10 0 0 0 10-10 10 10 0 0 0-10-10z"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+          </div>
+          <div class="ai-banner-text">
+            <div class="ai-banner-title" id="ai-status-title">IA Coach</div>
+            <div class="ai-banner-desc" id="ai-status-desc">Genera rutinas personalizadas basadas en tu perfil y 1,324 ejercicios</div>
+          </div>
+        </div>
+        <div class="content-grid">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Generar plan semanal con IA</div>
+            </div>
+            <p style="font-size:0.85rem; color:var(--text-2); margin-bottom:1rem;">La IA creará un plan completo de la semana con rutinas asignadas a cada día según tu objetivo.</p>
+            <form onsubmit="generateWeeklyPlan(event)">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Días/semana</label>
+                  <select class="form-input" id="ai-days">
+                    <option value="3">3 días</option>
+                    <option value="4" selected>4 días</option>
+                    <option value="5">5 días</option>
+                    <option value="6">6 días</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Equipamiento</label>
+                  <select class="form-input" id="ai-equipment">
+                    <option value="all">Todo</option>
+                    <option value="barbell">Barra</option>
+                    <option value="dumbbell">Mancuernas</option>
+                    <option value="body weight">Peso corporal</option>
+                    <option value="machine">Máquinas</option>
+                    <option value="cable">Cables</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Notas (opcional)</label>
+                <input type="text" class="form-input" id="ai-notes" placeholder="ej. Evitar ejercicios que duelan la rodilla" />
+              </div>
+              <button type="submit" class="btn-primary" id="ai-generate-btn">Generar plan semanal</button>
+            </form>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Plan nutricional + Comidas</div>
+            </div>
+            <p style="font-size:0.85rem; color:var(--text-2); margin-bottom:1rem;">Calcula tus macros objetivo y recibe recomendaciones de comidas según tu meta.</p>
+            <div id="ai-nutrition-result" style="margin-bottom:1rem;"></div>
+            <button class="btn-secondary" onclick="generateNutritionPlan()">Generar plan nutricional</button>
+          </div>
+        </div>
+        <div id="ai-weekly-result"></div>
+        <div id="ai-routine-result"></div>
+      </section>
+
+      <!-- Routines -->
+      <section id="page-routines" class="page-section">
+        <div class="page-header">
+          <h1 class="page-title">Rutinas</h1>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <div class="view-toggle">
+              <button class="view-toggle-btn active" id="view-week-btn" onclick="setRoutineView('week')">Semana</button>
+              <button class="view-toggle-btn" id="view-month-btn" onclick="setRoutineView('month')">Mes</button>
+              <button class="view-toggle-btn" id="view-list-btn" onclick="setRoutineView('list')">Lista</button>
+            </div>
+            <button class="btn-secondary" style="width:auto; padding:10px 16px;" onclick="navigateTo('ai-coach')">IA Coach</button>
+            <button class="btn-primary" style="width:auto; padding:10px 16px;" onclick="openRoutineModal()">+ Nueva</button>
+          </div>
+        </div>
+        <div id="routine-weekly-view" style="display:none;">
+          <div class="weekly-calendar" id="weekly-calendar"></div>
+          <div id="week-day-detail"></div>
+        </div>
+        <div id="routine-monthly-view" style="display:none;">
+          <div class="monthly-calendar">
+            <div class="monthly-header">
+              <button class="monthly-nav-btn" onclick="prevMonth()">< Anterior</button>
+              <div class="monthly-title" id="monthly-title"></div>
+              <button class="monthly-nav-btn" onclick="nextMonth()">Siguiente ></button>
+            </div>
+            <div class="monthly-grid" id="monthly-grid"></div>
+          </div>
+          <div id="month-day-detail"></div>
+        </div>
+        <div id="routine-list-view">
+          <div id="routines-list"></div>
+        </div>
+      </section>
+
+      <!-- Exercises Browser -->
+      <section id="page-exercises" class="page-section">
+        <div class="page-header">
+          <h1 class="page-title">Ejercicios</h1>
+          <div style="font-size:0.85rem; color:var(--text-3);">1,324 ejercicios</div>
+        </div>
+        <div class="search-bar">
+          <input type="text" id="exercise-search" placeholder="Buscar ejercicio..." oninput="searchExercises()" />
+          <select id="exercise-filter-category" onchange="searchExercises()">
+            <option value="">Todas las categorías</option>
+          </select>
+        </div>
+        <div id="exercises-grid" class="exercise-browser-grid"></div>
+        <div style="text-align:center; margin-top:1rem;">
+          <button class="btn-secondary" style="width:auto; padding:10px 24px; display:none;" id="load-more-btn" onclick="loadMoreExercises()">Cargar más</button>
+        </div>
+      </section>
+
+      <!-- Nutrition -->
+      <section id="page-nutrition" class="page-section">
+        <div class="page-header">
+          <h1 class="page-title">Nutrición</h1>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn-secondary" style="width:auto; padding:10px 16px;" onclick="openFoodCamera()">Foto Comida</button>
+            <button class="btn-secondary" style="width:auto; padding:10px 16px;" onclick="loadMealRecommendations()">Comidas IA</button>
+            <button class="btn-primary" style="width:auto; padding:10px 16px;" onclick="openMacrosModal()">+ Registrar</button>
+          </div>
+        </div>
+        <div id="food-photo-section" style="display:none; margin-bottom:1.5rem;"></div>
+        <div id="nutrition-meals-section" style="display:none; margin-bottom:1.5rem;"></div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Historial</div>
+          </div>
+          <div id="macros-list"></div>
+        </div>
+      </section>
+
+      <!-- Supplements -->
+      <section id="page-supplements" class="page-section">
+        <div class="page-header">
+          <h1 class="page-title">Suplementos</h1>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn-secondary" style="width:auto; padding:10px 16px;" onclick="openSupplementCamera()"> Foto Etiqueta</button>
+            <button class="btn-primary" style="width:auto; padding:10px 16px;" onclick="openSupplementModal()">+ Agregar</button>
+          </div>
+        </div>
+        <div id="supplement-photo-section" style="display:none; margin-bottom:1.5rem;"></div>
+        <div class="card">
+          <div id="supplements-list"></div>
+        </div>
+      </section>
+
+      <!-- Teams -->
+      <section id="page-teams" class="page-section">
+        <div class="page-header">
+          <h1 class="page-title">Equipos</h1>
+          <div style="display:flex; gap:8px;">
+            <button class="btn-secondary" style="width:auto; padding:10px 16px;" onclick="openJoinTeamModal()">Unirse</button>
+            <button class="btn-primary" style="width:auto; padding:10px 16px;" onclick="openCreateTeamModal()">+ Crear</button>
+          </div>
+        </div>
+        <div id="teams-list"></div>
+      </section>
+
+      <!-- Profile -->
+      <section id="page-profile" class="page-section">
+        <div class="page-header">
+          <h1 class="page-title">Perfil</h1>
+        </div>
+        <div class="content-grid">
+          <div class="card">
+            <div class="card-header"><div class="card-title">Datos personales</div></div>
+            <form onsubmit="saveProfile(event)">
+              <div class="form-group"><label>Usuario</label><input type="text" class="form-input" id="prof-username" /></div>
+              <div class="form-group"><label>Correo</label><input type="email" class="form-input" id="prof-email" disabled style="opacity:0.5;" /></div>
+              <div class="form-row">
+                <div class="form-group"><label>Edad</label><input type="number" class="form-input" id="prof-age" min="14" max="100" /></div>
+                <div class="form-group"><label>Altura (cm)</label><input type="number" class="form-input" id="prof-height" step="0.1" /></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label>Peso (kg)</label><input type="number" class="form-input" id="prof-weight" step="0.1" /></div>
+                <div class="form-group"><label>Objetivo</label><select class="form-input" id="prof-goal"><option value="MAINTENANCE">Mantener</option><option value="BULKING">Volumen</option><option value="CUTTING">Definición</option></select></div>
+              </div>
+              <button type="submit" class="btn-primary">Guardar cambios</button>
+            </form>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Tipo de cuerpo</div></div>
+            <p style="font-size:0.85rem; color:var(--text-2); margin-bottom:1rem;">Selecciona tu somatotipo. Esto ayuda a la IA a generar mejores rutinas y planes nutricionales.</p>
+            <div class="body-type-grid" id="prof-body-type-grid">
+              <div class="body-type-card" data-body-type="ECTOMORPH" onclick="selectBodyType('prof', 'ECTOMORPH')">
+                <svg class="body-type-svg" viewBox="0 0 80 100" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="40" cy="15" r="8"/><line x1="40" y1="23" x2="40" y2="50"/><line x1="28" y1="30" x2="52" y2="30"/><line x1="40" y1="50" x2="32" y2="75"/><line x1="40" y1="50" x2="48" y2="75"/><line x1="32" y1="75" x2="30" y2="95"/><line x1="48" y1="75" x2="50" y2="95"/>
+                </svg>
+                <div class="body-type-name">Ectomorfo</div>
+                <div class="body-type-desc">Delgado, metabolismo rápido. Difícil ganar peso.</div>
+              </div>
+              <div class="body-type-card" data-body-type="MESOMORPH" onclick="selectBodyType('prof', 'MESOMORPH')">
+                <svg class="body-type-svg" viewBox="0 0 80 100" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="40" cy="15" r="8"/><line x1="40" y1="23" x2="40" y2="48"/><line x1="22" y1="32" x2="58" y2="32"/><line x1="22" y1="32" x2="20" y2="48"/><line x1="58" y1="32" x2="60" y2="48"/><line x1="40" y1="48" x2="32" y2="75"/><line x1="40" y1="48" x2="48" y2="75"/><line x1="32" y1="75" x2="30" y2="95"/><line x1="48" y1="75" x2="50" y2="95"/>
+                </svg>
+                <div class="body-type-name">Mesomorfo</div>
+                <div class="body-type-desc">Atlético, responde bien al entrenamiento.</div>
+              </div>
+              <div class="body-type-card" data-body-type="ENDOMORPH" onclick="selectBodyType('prof', 'ENDOMORPH')">
+                <svg class="body-type-svg" viewBox="0 0 80 100" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <circle cx="40" cy="15" r="9"/><line x1="40" y1="24" x2="40" y2="48"/><line x1="18" y1="34" x2="62" y2="34"/><line x1="18" y1="34" x2="16" y2="50"/><line x1="62" y1="34" x2="64" y2="50"/><line x1="40" y1="48" x2="30" y2="75"/><line x1="40" y1="48" x2="50" y2="75"/><line x1="30" y1="75" x2="28" y2="95"/><line x1="50" y1="75" x2="52" y2="95"/>
+                </svg>
+                <div class="body-type-name">Endomorfo</div>
+                <div class="body-type-desc">Tendencia a ganar grasa. Metabolismo más lento.</div>
+              </div>
+            </div>
+            <input type="hidden" id="prof-body-type" value="" />
+            <button class="btn-primary" onclick="saveBodyType()">Guardar tipo de cuerpo</button>
+          </div>
+        </div>
+        <div class="card" id="profile-bmi-card" style="display:none;">
+          <div class="card-header"><div class="card-title">Tu IMC</div></div>
+          <div id="profile-bmi-content"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="modal-overlay" class="modal-overlay">
+    <div class="modal" id="modal-content"></div>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

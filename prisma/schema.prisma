@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  email        String   @unique
+  password     String
+  age          Int?
+  height_cm    Float?
+  weight_kg    Float?
+  goal         String?  @default("MAINTENANCE")
+  body_type    String?  
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  macros_logs      MacrosDailyLog[]
+  routines         Routine[]
+  progress_photos  ProgressPhoto[]
+  supplements      SupplementMed[]
+  team_memberships TeamMember[]
+  owned_teams      Team[]
+
+  @@map("users")
+}
+
+model MacrosDailyLog {
+  id         String   @id @default(uuid())
+  user_id    String
+  date       DateTime
+  calories   Int      @default(0)
+  protein_g  Int      @default(0)
+  carbs_g    Int      @default(0)
+  fats_g     Int      @default(0)
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("macros_daily_log")
+}
+
+model Routine {
+  id           String   @id @default(uuid())
+  user_id      String
+  name         String
+  ai_generated Boolean  @default(false)
+  ai_prompt    String?
+  day_of_week  Int?     
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  user      User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  exercises Exercise[]
+
+  @@map("routines")
+}
+
+model Exercise {
+  id                 String   @id @default(uuid())
+  routine_id         String
+  name               String
+  sets               Int      @default(3)
+  reps               String   @default("8-12")
+  rest_seconds       Int      @default(90)
+  order_index        Int      @default(0)
+  exercise_dataset_id String?
+  created_at         DateTime @default(now())
+
+  routine Routine @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+
+  @@map("exercises")
+}
+
+model ProgressPhoto {
+  id            String   @id @default(uuid())
+  user_id       String
+  photo_url     String
+  weight_logged Float?
+  date          DateTime @default(now())
+  created_at    DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("progress_photos")
+}
+
+model SupplementMed {
+  id            String   @id @default(uuid())
+  user_id       String
+  name          String
+  dosage        String
+  time_of_day   String   @default("MORNING")
+  is_medication Boolean  @default(false)
+  created_at    DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("supplements_meds")
+}
+
+model Team {
+  id           String   @id @default(uuid())
+  name         String
+  admin_id     String
+  invite_code  String   @unique
+  created_at   DateTime @default(now())
+
+  admin   User        @relation(fields: [admin_id], references: [id], onDelete: Cascade)
+  members TeamMember[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id      String @id @default(uuid())
+  team_id String
+  user_id String
+  role    String @default("MEMBER")
+
+  team Team @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([team_id, user_id])
+  @@map("team_members")
+}
