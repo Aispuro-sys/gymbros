@@ -1,0 +1,2 @@
+import { Asset } from 'expo-asset';
+import * as SplashScreen from 'expo-splash-screen';
