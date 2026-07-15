@@ -164,6 +164,7 @@ function navigateTo(page) {
   if (page === 'supplements') loadSupplements();
   if (page === 'teams') loadTeams();
   if (page === 'recipes') loadRecipes();
+  if (page === 'shopping') loadShoppingPage();
   if (page === 'community') { loadCommunityFeed(); startPolling('community', () => loadCommunityFeed(true), 5000); }
   if (page === 'profile') loadProfile();
 }
@@ -1841,6 +1842,8 @@ let shoppingListItems = [];
 let shoppingListRecipeIds = [];
 let shoppingListRecipes = [];
 let shoppingListMeals = [];
+let savedShoppingList = null;
+let shoppingStep = 'dishes';
 
 function addRecipeToShoppingList(recipeId) {
   if (!shoppingListRecipeIds.includes(recipeId)) {
@@ -1857,6 +1860,7 @@ async function openShoppingListModal() {
     </div>
     <div id="shopping-list-view">${loadingHtml()}</div>
   `);
+  shoppingStep = 'dishes';
   await renderShoppingList();
 }
 
@@ -1879,98 +1883,165 @@ async function renderShoppingList() {
     return;
   }
 
-  try {
-    let data;
-    if (shoppingListRecipeIds.length > 0) {
-      data = await apiCall('/recipes/shopping-list', 'POST', { recipeIds: shoppingListRecipeIds });
-    } else {
-      data = { ingredients: [], recipes: [], recipeNames: [], recipeCount: 0 };
+  if (shoppingStep === 'dishes') {
+    await renderShoppingDishesStep(view);
+  } else {
+    await renderShoppingIngredientsStep(view);
+  }
+}
+
+async function renderShoppingDishesStep(view) {
+  let recipesData = [];
+  if (shoppingListRecipeIds.length > 0) {
+    try {
+      const data = await apiCall('/recipes/shopping-list', 'POST', { recipeIds: shoppingListRecipeIds });
+      shoppingListItems = data.ingredients;
+      shoppingListRecipes = data.recipes || [];
+    } catch (err) {
+      view.innerHTML = `<div class="auth-error show">${err.message}</div>`;
+      return;
     }
-    shoppingListItems = data.ingredients;
-    shoppingListRecipes = data.recipes || [];
+  }
 
-    const totalItems = shoppingListItems.length;
-    const checkedItems = shoppingListItems.filter((i) => i.checked).length;
+  view.innerHTML = `
+    <div style="margin-bottom:0.5rem; padding:8px 12px; background:var(--surface); border-radius:8px; font-size:0.85rem; color:var(--text-2);">
+      <strong>Paso 1:</strong> Selecciona los platillos que quieres cocinar
+    </div>
 
-    view.innerHTML = `
-      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1rem;">
-        <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="showAddRecipeSection()">+ Agregar receta</button>
-        <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="generateShoppingListFromMeals()">🍽️ Desde comidas de hoy</button>
-        <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="clearShoppingList()">🗑️ Limpiar</button>
-      </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1rem;">
+      <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="toggleShoppingAddSection()">+ Agregar receta</button>
+      <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="generateShoppingListFromMeals()">🍽️ Desde comidas</button>
+    </div>
 
-      ${shoppingListRecipes.length > 0 ? `
-        <div style="margin-bottom:1rem;">
-          <strong>Platillos en la lista (${shoppingListRecipes.length}):</strong>
-          <div id="cart-recipes" style="margin-top:0.5rem;">
-            ${shoppingListRecipes.map((r, idx) => `
-              <div class="list-item" style="display:flex; align-items:center; gap:8px;">
-                ${r.image_url ? `<img src="${r.image_url}" style="width:40px; height:40px; border-radius:6px; object-fit:cover;" onerror="this.style.display='none'" />` : '<div style="width:40px; height:40px; border-radius:6px; background:var(--bg); display:flex; align-items:center; justify-content:center;">🥗</div>'}
-                <div style="flex:1;">
-                  <div class="list-item-name">${r.name}</div>
-                  <div class="list-item-meta">${r.calories} cal · ${r.protein_g}g prot</div>
-                </div>
-                <button onclick="removeRecipeFromShoppingList(${idx})" style="background:none; border:none; color:var(--danger); font-size:18px; cursor:pointer;">×</button>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      ` : ''}
+    <div id="shopping-add-section" style="display:none; margin-bottom:1rem; padding:1rem; background:var(--surface); border-radius:8px;">
+      <input type="text" class="form-input" id="shopping-search-add" placeholder="Buscar receta..." oninput="searchRecipesForShopping(this.value, 'shopping-add-results')" style="margin-bottom:0.5rem;" />
+      <div id="shopping-add-results" style="max-height:250px; overflow-y:auto;"></div>
+    </div>
 
-      ${shoppingListMeals.length > 0 ? `
-        <div style="margin-bottom:1rem;">
-          <strong>Comidas de hoy (${shoppingListMeals.length}):</strong>
-          <div style="margin-top:0.5rem;">
-            ${shoppingListMeals.map((m) => `
-              <div class="list-item" style="display:flex; align-items:center; gap:8px;">
-                ${m.photo_url ? `<img src="${m.photo_url}" style="width:40px; height:40px; border-radius:6px; object-fit:cover;" />` : '<div style="width:40px; height:40px; border-radius:6px; background:var(--bg); display:flex; align-items:center; justify-content:center;">🍽️</div>'}
-                <div style="flex:1;">
-                  <div class="list-item-name">${m.name}</div>
-                  <div class="list-item-meta">${m.calories} cal · ${m.meal_type}</div>
-                </div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      ` : ''}
-
-      <div style="margin-bottom:1rem; display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn-primary" style="width:auto; padding:10px 18px;" onclick="downloadShoppingListPDF()">📄 Descargar PDF</button>
-        <button class="btn-secondary" style="width:auto; padding:10px 18px;" onclick="sendShoppingListWhatsApp()">📱 Enviar por WhatsApp</button>
-      </div>
-
-      <div style="margin-bottom:0.5rem; display:flex; justify-content:space-between; align-items:center;">
-        <strong>Lista de ingredientes (${totalItems})</strong>
-        ${totalItems > 0 ? `<span style="font-size:0.85rem; color:var(--text-2);">${checkedItems}/${totalItems} en carrito</span>` : ''}
-      </div>
-
-      ${totalItems === 0 ? `
-        <div class="empty-state">
-          <div class="empty-state-text">No hay ingredientes. Agrega recetas o genera desde tus comidas.</div>
-        </div>
-      ` : `
-        <div id="shopping-list-items">
-          ${shoppingListItems.map((item, idx) => `
+    ${shoppingListRecipes.length > 0 ? `
+      <div style="margin-bottom:1rem;">
+        <strong>Platillos seleccionados (${shoppingListRecipes.length}):</strong>
+        <div style="margin-top:0.5rem;">
+          ${shoppingListRecipes.map((r, idx) => `
             <div class="list-item" style="display:flex; align-items:center; gap:8px;">
-              <input type="checkbox" id="shop-check-${idx}" ${item.checked ? 'checked' : ''} onchange="toggleShoppingItem(${idx})" style="width:18px; height:18px; flex-shrink:0;" />
+              ${r.image_url ? `<img src="${r.image_url}" style="width:40px; height:40px; border-radius:6px; object-fit:cover;" onerror="this.style.display='none'" />` : '<div style="width:40px; height:40px; border-radius:6px; background:var(--bg); display:flex; align-items:center; justify-content:center;">🥗</div>'}
               <div style="flex:1;">
-                <div class="list-item-name" style="${item.checked ? 'text-decoration:line-through; opacity:0.5;' : ''}">${item.name}</div>
-                ${item.count > 1 ? `<div class="list-item-meta">En ${item.count} receta(s)</div>` : ''}
+                <div class="list-item-name">${r.name}</div>
+                <div class="list-item-meta">${r.calories} cal · ${r.protein_g}g prot</div>
               </div>
-              <input type="text" placeholder="Cant." value="${item.quantity || ''}" onchange="updateShoppingItemQty(${idx}, this.value)" style="width:60px; padding:4px 6px; font-size:0.8rem; border:1px solid var(--border); border-radius:4px; background:var(--bg);" />
-              <button onclick="removeShoppingItem(${idx})" style="background:none; border:none; color:var(--danger); font-size:16px; cursor:pointer;">×</button>
+              <button onclick="removeRecipeFromShoppingList(${idx})" style="background:none; border:none; color:var(--danger); font-size:18px; cursor:pointer;">×</button>
             </div>
           `).join('')}
         </div>
-      `}
-
-      <div id="shopping-add-section" style="display:none; margin-top:1rem; border-top:1px solid var(--border); padding-top:1rem;">
-        <input type="text" class="form-input" id="shopping-search-add" placeholder="Buscar receta..." oninput="searchRecipesForShopping(this.value, 'shopping-add-results')" style="margin-bottom:0.5rem;" />
-        <div id="shopping-add-results" style="max-height:200px; overflow-y:auto;"></div>
       </div>
-    `;
+    ` : ''}
+
+    ${shoppingListMeals.length > 0 ? `
+      <div style="margin-bottom:1rem;">
+        <strong>Comidas de hoy (${shoppingListMeals.length}):</strong>
+        <div style="margin-top:0.5rem;">
+          ${shoppingListMeals.map((m) => `
+            <div class="list-item" style="display:flex; align-items:center; gap:8px;">
+              ${m.photo_url ? `<img src="${m.photo_url}" style="width:40px; height:40px; border-radius:6px; object-fit:cover;" />` : '<div style="width:40px; height:40px; border-radius:6px; background:var(--bg); display:flex; align-items:center; justify-content:center;">🍽️</div>'}
+              <div style="flex:1;">
+                <div class="list-item-name">${m.name}</div>
+                <div class="list-item-meta">${m.calories} cal · ${m.meal_type}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:1rem;">
+      <button class="btn-primary" style="width:auto; padding:10px 20px;" onclick="confirmShoppingDishes()">✅ Confirmar y ver ingredientes</button>
+      <button class="btn-secondary" style="width:auto; padding:10px 20px;" onclick="clearShoppingList()">🗑️ Limpiar</button>
+    </div>
+  `;
+}
+
+async function renderShoppingIngredientsStep(view) {
+  const totalItems = shoppingListItems.length;
+  const checkedItems = shoppingListItems.filter((i) => i.checked).length;
+
+  view.innerHTML = `
+    <div style="margin-bottom:0.5rem; padding:8px 12px; background:var(--surface); border-radius:8px; font-size:0.85rem; color:var(--text-2);">
+      <strong>Paso 2:</strong> Lista de ingredientes — marca lo que ya compraste
+    </div>
+
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1rem;">
+      <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="backToDishesStep()">← Volver a platillos</button>
+      <button class="btn-primary" style="width:auto; padding:8px 14px;" onclick="downloadShoppingListPDF()">📄 PDF</button>
+      <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="sendShoppingListWhatsApp()">📱 WhatsApp</button>
+      <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="shareShoppingList()">🔗 Compartir</button>
+    </div>
+
+    ${shoppingListRecipes.length > 0 ? `
+      <div style="margin-bottom:1rem; font-size:0.85rem; color:var(--text-2);">
+        <strong>Platillos:</strong> ${shoppingListRecipes.map((r) => r.name).join(', ')}
+      </div>
+    ` : ''}
+
+    <div style="margin-bottom:0.5rem; display:flex; justify-content:space-between; align-items:center;">
+      <strong>Ingredientes (${totalItems})</strong>
+      ${totalItems > 0 ? `<span style="font-size:0.85rem; color:var(--text-2);">${checkedItems}/${totalItems} comprados</span>` : ''}
+    </div>
+
+    ${totalItems === 0 ? `
+      <div class="empty-state">
+        <div class="empty-state-text">No hay ingredientes. Vuelve y agrega más platillos.</div>
+      </div>
+    ` : `
+      <div id="shopping-list-items">
+        ${shoppingListItems.map((item, idx) => `
+          <div class="list-item" style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="shop-check-${idx}" ${item.checked ? 'checked' : ''} onchange="toggleShoppingItem(${idx})" style="width:20px; height:20px; flex-shrink:0; cursor:pointer;" />
+            <div style="flex:1;">
+              <div class="list-item-name" style="${item.checked ? 'text-decoration:line-through; opacity:0.5;' : ''}">${item.name}</div>
+              ${item.count > 1 ? `<div class="list-item-meta">En ${item.count} receta(s)</div>` : ''}
+            </div>
+            <input type="text" placeholder="Cant." value="${item.quantity || ''}" onchange="updateShoppingItemQty(${idx}, this.value)" style="width:60px; padding:4px 6px; font-size:0.8rem; border:1px solid var(--border); border-radius:4px; background:var(--bg);" />
+            <button onclick="removeShoppingItem(${idx})" style="background:none; border:none; color:var(--danger); font-size:16px; cursor:pointer;">×</button>
+          </div>
+        `).join('')}
+      </div>
+    `}
+  `;
+}
+
+function toggleShoppingAddSection() {
+  const sec = document.getElementById('shopping-add-section');
+  if (sec) {
+    sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
+    if (sec.style.display === 'block') {
+      searchRecipesForShopping('', 'shopping-add-results');
+    }
+  }
+}
+
+function confirmShoppingDishes() {
+  shoppingStep = 'ingredients';
+  saveShoppingListToBackend();
+  renderShoppingList();
+}
+
+function backToDishesStep() {
+  shoppingStep = 'dishes';
+  renderShoppingList();
+}
+
+async function saveShoppingListToBackend() {
+  try {
+    await apiCall('/shopping-list', 'POST', {
+      items: shoppingListItems.map((item) => ({
+        name: item.name,
+        quantity: item.quantity || null,
+        checked: item.checked || false,
+        recipe_names: item.recipes || [],
+      })),
+    });
   } catch (err) {
-    view.innerHTML = `<div class="auth-error show">${err.message}</div>`;
+    console.error('Save shopping list error:', err);
   }
 }
 
@@ -1982,25 +2053,18 @@ function toggleShoppingItem(idx) {
     nameEl.style.textDecoration = shoppingListItems[idx].checked ? 'line-through' : '';
     nameEl.style.opacity = shoppingListItems[idx].checked ? '0.5' : '';
   }
+  saveShoppingListToBackend();
 }
 
 function updateShoppingItemQty(idx, val) {
   if (shoppingListItems[idx]) shoppingListItems[idx].quantity = val;
+  saveShoppingListToBackend();
 }
 
 function removeShoppingItem(idx) {
   shoppingListItems.splice(idx, 1);
+  saveShoppingListToBackend();
   renderShoppingList();
-}
-
-function showAddRecipeSection() {
-  const sec = document.getElementById('shopping-add-section');
-  if (sec) {
-    sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
-    if (sec.style.display === 'block') {
-      searchRecipesForShopping('', 'shopping-add-results');
-    }
-  }
 }
 
 async function searchRecipesForShopping(query, targetId) {
@@ -2275,6 +2339,146 @@ function sendShoppingListWhatsApp() {
   const phone = currentUser?.phone?.replace(/[^0-9]/g, '') || '';
   const url = phone ? `https://wa.me/${phone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
   window.open(url, '_blank');
+}
+
+// ===== Shopping List Page (dedicated page in app) =====
+async function loadShoppingPage() {
+  const content = document.getElementById('shopping-page-content');
+  if (!content) return;
+
+  content.innerHTML = loadingHtml();
+
+  try {
+    const data = await apiCall('/shopping-list');
+    savedShoppingList = data.list;
+
+    if (savedShoppingList && savedShoppingList.items && savedShoppingList.items.length > 0) {
+      shoppingListItems = savedShoppingList.items.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        checked: item.checked,
+        recipes: item.recipe_names || [],
+        count: (item.recipe_names || []).length,
+      }));
+
+      const totalItems = shoppingListItems.length;
+      const checkedItems = shoppingListItems.filter((i) => i.checked).length;
+      const progress = totalItems > 0 ? Math.round((checkedItems / totalItems) * 100) : 0;
+
+      content.innerHTML = `
+        <div class="card" style="margin-bottom:1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+            <strong>${savedShoppingList.name}</strong>
+            <span style="font-size:0.85rem; color:var(--text-2);">${checkedItems}/${totalItems} comprados</span>
+          </div>
+          <div style="background:var(--surface); border-radius:8px; height:8px; overflow:hidden;">
+            <div style="background:var(--accent); height:100%; width:${progress}%; transition:width 0.3s;"></div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1rem;">
+          <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="shoppingPageAddRecipes()">+ Agregar recetas</button>
+          <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="generateShoppingListFromMeals()">🍽️ Desde comidas</button>
+          <button class="btn-primary" style="width:auto; padding:8px 14px;" onclick="downloadShoppingListPDF()">📄 PDF</button>
+          <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="sendShoppingListWhatsApp()">📱 WhatsApp</button>
+          <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="shareShoppingList()">🔗 Compartir</button>
+          <button class="btn-secondary" style="width:auto; padding:8px 14px;" onclick="clearShoppingListPage()">🗑️ Limpiar</button>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Lista de ingredientes</div>
+          </div>
+          <div id="shopping-page-items">
+            ${shoppingListItems.map((item, idx) => `
+              <div class="list-item" style="display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" id="page-shop-check-${idx}" ${item.checked ? 'checked' : ''} onchange="togglePageShoppingItem(${idx})" style="width:20px; height:20px; flex-shrink:0; cursor:pointer;" />
+                <div style="flex:1;">
+                  <div class="list-item-name" style="${item.checked ? 'text-decoration:line-through; opacity:0.5;' : ''}">${item.name}</div>
+                  ${item.count > 1 ? `<div class="list-item-meta">En ${item.count} receta(s)</div>` : ''}
+                </div>
+                <input type="text" placeholder="Cant." value="${item.quantity || ''}" onchange="updatePageShoppingItemQty(${idx}, this.value)" style="width:60px; padding:4px 6px; font-size:0.8rem; border:1px solid var(--border); border-radius:4px; background:var(--bg);" />
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    } else {
+      content.innerHTML = `
+        <div class="empty-state" style="margin-bottom:1rem;">
+          <div style="font-size:3rem; margin-bottom:0.5rem;">🛒</div>
+          <div class="empty-state-text">No tienes una lista de supermercado activa</div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+          <button class="btn-primary" style="width:auto; padding:12px 20px;" onclick="shoppingPageAddRecipes()">+ Crear lista con recetas</button>
+          <button class="btn-secondary" style="width:auto; padding:12px 20px;" onclick="generateShoppingListFromMeals()">🍽️ Desde comidas de hoy</button>
+          <button class="btn-secondary" style="width:auto; padding:12px 20px;" onclick="generateShoppingListFromAI()">🤖 Con IA</button>
+        </div>
+      `;
+    }
+  } catch (err) {
+    content.innerHTML = `<div class="auth-error show">${err.message}</div>`;
+  }
+}
+
+function togglePageShoppingItem(idx) {
+  if (!shoppingListItems[idx]) return;
+  shoppingListItems[idx].checked = document.getElementById(`page-shop-check-${idx}`).checked;
+  const nameEl = document.querySelector(`#page-shop-check-${idx}`).parentElement.querySelector('.list-item-name');
+  if (nameEl) {
+    nameEl.style.textDecoration = shoppingListItems[idx].checked ? 'line-through' : '';
+    nameEl.style.opacity = shoppingListItems[idx].checked ? '0.5' : '';
+  }
+  saveShoppingListToBackend();
+  loadShoppingPage();
+}
+
+function updatePageShoppingItemQty(idx, val) {
+  if (shoppingListItems[idx]) shoppingListItems[idx].quantity = val;
+  saveShoppingListToBackend();
+}
+
+function clearShoppingListPage() {
+  if (!confirm('¿Seguro que quieres eliminar toda la lista?')) return;
+  shoppingListRecipeIds = [];
+  shoppingListItems = [];
+  shoppingListRecipes = [];
+  shoppingListMeals = [];
+  saveShoppingListToBackend();
+  loadShoppingPage();
+}
+
+function shoppingPageAddRecipes() {
+  shoppingStep = 'dishes';
+  openShoppingListModal();
+}
+
+async function shareShoppingList() {
+  if (shoppingListItems.length === 0) { alert('La lista está vacía'); return; }
+
+  try {
+    await saveShoppingListToBackend();
+    const data = await apiCall('/shopping-list');
+    if (!data.list) { alert('Guarda la lista primero'); return; }
+
+    const shareRes = await apiCall(`/shopping-list/${data.list.id}/share`, 'POST', {});
+    const baseUrl = window.location.origin;
+    const shareUrl = `${baseUrl}${shareRes.shareUrl}`;
+
+    if (navigator.share) {
+      navigator.share({
+        title: 'Lista de Supermercado - Talos Forge',
+        text: 'Ayúdame con las compras 🛒',
+        url: shareUrl,
+      });
+    } else {
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        alert('Enlace copiado: ' + shareUrl);
+      }).catch(() => {
+        prompt('Copia este enlace:', shareUrl);
+      });
+    }
+  } catch (err) { alert(err.message); }
 }
 
 // ===== Community =====

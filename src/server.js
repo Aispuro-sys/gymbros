@@ -13,6 +13,8 @@ const aiRoutes = require('./routes/ai');
 const mealRoutes = require('./routes/meals');
 const communityRoutes = require('./routes/community');
 const recipeRoutes = require('./routes/recipes');
+const shoppingListRoutes = require('./routes/shoppingList');
+const shoppingListPublicRoutes = require('./routes/shoppingListPublic');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,6 +35,8 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/meals', mealRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/recipes', recipeRoutes);
+app.use('/api/shopping-list', shoppingListRoutes);
+app.use('/api/shopping-list-public', shoppingListPublicRoutes);
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));

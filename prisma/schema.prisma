@@ -38,6 +38,7 @@ model User {
   community_posts  CommunityPost[]
   community_replies CommunityReply[]
   community_reactions CommunityReaction[]
+  shopping_lists   ShoppingList[]
 
   @@map("users")
 }
@@ -275,4 +276,32 @@ model CommunityReaction {
   reply  CommunityReply?  @relation(fields: [reply_id], references: [id], onDelete: Cascade)
 
   @@map("community_reactions")
+}
+
+model ShoppingList {
+  id          String   @id @default(uuid())
+  user_id     String
+  name        String   @default("Lista de Supermercado")
+  share_token String?  @unique
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  user  User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  items ShoppingListItem[]
+
+  @@map("shopping_lists")
+}
+
+model ShoppingListItem {
+  id              String   @id @default(uuid())
+  shopping_list_id String
+  name            String
+  quantity        String?
+  checked         Boolean  @default(false)
+  recipe_names    String[]
+  order_index     Int      @default(0)
+
+  shoppingList ShoppingList @relation(fields: [shopping_list_id], references: [id], onDelete: Cascade)
+
+  @@map("shopping_list_items")
 }
