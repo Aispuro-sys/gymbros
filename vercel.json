@@ -17,9 +17,6 @@
     { "src": "/(.*)", "dest": "/src/server.js" }
   ],
   "env": {
-    "JWT_SECRET": "@jwt_secret",
-    "OPENAI_API_KEY": "@openai_api_key",
-    "DATABASE_URL": "@database_url",
     "DATABASE_PROVIDER": "postgresql"
   }
 }
