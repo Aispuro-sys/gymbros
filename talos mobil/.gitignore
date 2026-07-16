@@ -1,11 +1,25 @@
-node_modules/
+# Android
+*.iml
+.gradle/
+build/
+/local.properties
+/.idea/
+.DS_Store
+/captures/
+.externalNativeBuild/
+.cxx/
+
+# Expo (old)
 .expo/
-dist/
-npm-debug.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-*.orig.*
-web-build/
+node_modules/
+package-lock.json
+
+# Keep these (do NOT ignore):
+!app/
+!gradle/
+!build.gradle.kts
+!settings.gradle.kts
+!gradle.properties
+!gradlew
+!gradlew.bat
+!README.md
