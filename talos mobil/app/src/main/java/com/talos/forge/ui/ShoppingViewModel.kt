@@ -2,6 +2,7 @@ package com.talos.forge.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.talos.forge.data.ErrorUtils
 import com.talos.forge.data.Repository
 import com.talos.forge.data.models.ShoppingList
 import com.talos.forge.data.models.ShoppingListSaveItem
@@ -38,23 +39,7 @@ class ShoppingViewModel(private val repository: Repository) : ViewModel() {
                 val list = repository.getShoppingList()
                 _shoppingList.value = list
             } catch (e: Exception) {
-                _error.value = e.message
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun generateFromMeals() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                val response = repository.generateShoppingListFromMeals()
-                _ingredients.value = response.ingredients
-                _recipes.value = response.recipes
-                saveList(response.ingredients)
-            } catch (e: Exception) {
-                _error.value = e.message
+                _error.value = ErrorUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false
             }
@@ -73,7 +58,7 @@ class ShoppingViewModel(private val repository: Repository) : ViewModel() {
                     saveList(aggregation.ingredients)
                 }
             } catch (e: Exception) {
-                _error.value = e.message
+                _error.value = ErrorUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false
             }
@@ -89,7 +74,7 @@ class ShoppingViewModel(private val repository: Repository) : ViewModel() {
                 _recipes.value = aggregation.recipes
                 saveList(aggregation.ingredients)
             } catch (e: Exception) {
-                _error.value = e.message
+                _error.value = ErrorUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false
             }
@@ -110,7 +95,7 @@ class ShoppingViewModel(private val repository: Repository) : ViewModel() {
                 val saved = repository.saveShoppingList(items)
                 _shoppingList.value = saved
             } catch (e: Exception) {
-                _error.value = e.message
+                _error.value = ErrorUtils.getErrorMessage(e)
             }
         }
     }
@@ -122,7 +107,7 @@ class ShoppingViewModel(private val repository: Repository) : ViewModel() {
                 repository.toggleShoppingItem(list.id, itemId, checked)
                 loadShoppingList()
             } catch (e: Exception) {
-                _error.value = e.message
+                _error.value = ErrorUtils.getErrorMessage(e)
             }
         }
     }
@@ -134,7 +119,7 @@ class ShoppingViewModel(private val repository: Repository) : ViewModel() {
                 val response = repository.shareShoppingList(list.id)
                 _shareUrl.value = response.shareUrl
             } catch (e: Exception) {
-                _error.value = e.message
+                _error.value = ErrorUtils.getErrorMessage(e)
             }
         }
     }
@@ -148,13 +133,44 @@ class ShoppingViewModel(private val repository: Repository) : ViewModel() {
                 _ingredients.value = emptyList()
                 _recipes.value = emptyList()
             } catch (e: Exception) {
-                _error.value = e.message
+                _error.value = ErrorUtils.getErrorMessage(e)
             }
         }
     }
 
     fun clearError() {
         _error.value = null
+    }
+
+    fun addItem(name: String, quantity: String?) {
+        val list = _shoppingList.value
+        viewModelScope.launch {
+            try {
+                if (list != null) {
+                    val updated = repository.addShoppingItem(list.id, name, quantity)
+                    _shoppingList.value = updated
+                } else {
+                    val saved = repository.saveShoppingList(listOf(
+                        ShoppingListSaveItem(name = name, quantity = quantity, checked = false)
+                    ))
+                    _shoppingList.value = saved
+                }
+            } catch (e: Exception) {
+                _error.value = ErrorUtils.getErrorMessage(e)
+            }
+        }
+    }
+
+    fun deleteItem(itemId: String) {
+        val list = _shoppingList.value ?: return
+        viewModelScope.launch {
+            try {
+                val updated = repository.deleteShoppingItem(list.id, itemId)
+                _shoppingList.value = updated
+            } catch (e: Exception) {
+                _error.value = ErrorUtils.getErrorMessage(e)
+            }
+        }
     }
 
     fun clearShareUrl() {

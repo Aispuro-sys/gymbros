@@ -15,6 +15,20 @@ data class RegisterRequest(
 )
 data class AuthResponse(val token: String, val user: User)
 data class UserResponse(val user: User)
+data class AvailabilityResponse(val available: Boolean)
+
+data class ProfileUpdateRequest(
+    val username: String? = null,
+    val age: Int? = null,
+    val height_cm: Float? = null,
+    val weight_kg: Float? = null,
+    val goal: String? = null,
+    val body_type: String? = null,
+    val gender: String? = null,
+    val bio: String? = null,
+    val profile_photo: String? = null,
+    val phone: String? = null
+)
 
 // ===== User =====
 data class User(
@@ -55,13 +69,66 @@ data class Exercise(
     val sets: Int = 3,
     val reps: String = "8-12",
     val rest_seconds: Int = 90,
-    val order_index: Int = 0
+    val order_index: Int = 0,
+    val exercise_dataset_id: String? = null,
+    val gif_url: String? = null,
+    val image: String? = null
 )
 data class ExerciseRequest(
     val name: String,
     val sets: Int = 3,
     val reps: String = "8-12",
-    val rest_seconds: Int = 90
+    val rest_seconds: Int = 90,
+    val exercise_dataset_id: String? = null
+)
+
+// ===== Exercise Dataset (search from backend) =====
+data class ExerciseDataset(
+    val id: String,
+    val name: String,
+    val category: String? = null,
+    val category_es: String? = null,
+    val body_part: String? = null,
+    val equipment: String? = null,
+    val equipment_es: String? = null,
+    val target: String? = null,
+    val target_es: String? = null,
+    val muscle_group: String? = null,
+    val muscle_group_es: String? = null,
+    val secondary_muscles: List<String>? = null,
+    val secondary_muscles_es: List<String>? = null,
+    val image: String? = null,
+    val gif_url: String? = null,
+    val instructions: Map<String, String>? = null,
+    val instruction_steps: Map<String, List<String>>? = null
+) {
+    val instructionsEs: String? get() = instructions?.get("es")
+    val instructionStepsEs: List<String>? get() = instruction_steps?.get("es")
+}
+data class ExercisesSearchResponse(val exercises: List<ExerciseDataset>, val total: Int)
+data class ExerciseDetailResponse(val exercise: ExerciseDataset)
+data class CategoriesResponse(val categories: List<CategoryOption>)
+data class EquipmentResponse(val equipment: List<CategoryOption>)
+data class TargetsResponse(val targets: List<CategoryOption>)
+data class CategoryOption(val value: String, val label: String)
+
+// ===== AI Weekly Plan =====
+data class WeeklyPlanRequest(
+    val days_per_week: Int = 4,
+    val equipment: String = "all",
+    val notes: String? = null,
+    val muscle_groups: List<String> = emptyList()
+)
+data class WeeklyPlanResponse(
+    val plan_name: String? = null,
+    val days: List<Routine> = emptyList(),
+    val ai_notes: String? = null,
+    val ai_powered: Boolean = false
+)
+data class AIRoutineResponse(
+    val routine: Routine,
+    val ai_notes: String? = null,
+    val ai_powered: Boolean = false
 )
 
 // ===== Nutrition =====
@@ -188,24 +255,143 @@ data class CommunityPost(
     val media_type: String = "TEXT",
     val created_at: String,
     val user: CommunityUser? = null,
-    val replies: List<CommunityReply> = emptyList()
+    val replies: List<CommunityReply> = emptyList(),
+    val reactions: List<CommunityReaction> = emptyList()
 )
-data class CommunityUser(val id: String, val username: String, val profile_photo: String? = null, val role: String? = null)
+data class CommunityUser(val id: String, val username: String, val profile_photo: String? = null, val role: String? = null, val bio: String? = null)
+data class CommunityReaction(val id: String, val emoji: String, val user_id: String)
 data class CommunityReply(
     val id: String,
     val post_id: String,
     val user_id: String,
     val content: String,
+    val media_url: String? = null,
     val created_at: String,
     val user: CommunityUser? = null
 )
-data class CommunityPostRequest(val content: String)
+data class CommunityPostRequest(val content: String, val media_url: String? = null, val media_type: String = "TEXT")
 data class CommunityPostsResponse(val posts: List<CommunityPost>)
 data class CommunityPostResponse(val post: CommunityPost)
 data class CommunityReplyResponse(val reply: CommunityReply)
+data class CommunityReactRequest(val emoji: String)
+data class CommunitySearchResponse(val users: List<CommunityUser>)
+data class CommunityUserProfile(
+    val id: String,
+    val username: String,
+    val profile_photo: String? = null,
+    val role: String? = null,
+    val bio: String? = null,
+    val age: Int? = null,
+    val height_cm: Int? = null,
+    val weight_kg: Int? = null,
+    val goal: String? = null,
+    val body_type: String? = null,
+    val gender: String? = null,
+    val created_at: String? = null,
+    val post_count: Int = 0,
+    val routine_count: Int = 0
+)
+data class CommunityUserProfileResponse(
+    val user: CommunityUserProfile,
+    val posts: List<CommunityPost> = emptyList(),
+    val routines: List<CommunityProfileRoutine> = emptyList()
+)
+data class CommunityProfileRoutine(
+    val id: String,
+    val name: String,
+    val day_of_week: Int? = null,
+    val ai_generated: Boolean = false,
+    val _count: CommunityProfileRoutineCount? = null
+)
+data class CommunityProfileRoutineCount(val exercises: Int = 0)
 
 // ===== AI =====
 data class AIRecipeRecommendation(val recipes: List<Recipe>)
+
+data class AnalyzeFoodRequest(val image: String)
+data class FoodAnalysisResponse(
+    val analysis: FoodAnalysis,
+    val ai_powered: Boolean = false
+)
+data class FoodAnalysis(
+    @com.google.gson.annotations.SerializedName("food_name") val name: String = "",
+    val estimated_portion: String? = null,
+    val calories: Int = 0,
+    val protein_g: Int = 0,
+    val carbs_g: Int = 0,
+    val fats_g: Int = 0,
+    val fiber_g: Double? = null,
+    val sugar_g: Double? = null,
+    val sodium_mg: Double? = null,
+    val confidence: String = "",
+    val notes: String? = null
+)
+
+data class AnalyzeSupplementRequest(val image: String)
+data class SupplementAnalysisResponse(
+    val analysis: SupplementAnalysis,
+    val ai_powered: Boolean = false
+)
+data class SupplementAnalysis(
+    val name: String = "",
+    val brand: String? = null,
+    val serving_size: String? = null,
+    val servings_per_container: Int? = null,
+    val calories: Int = 0,
+    val protein_g: Int = 0,
+    val carbs_g: Int = 0,
+    val fats_g: Int = 0,
+    val key_ingredients: List<String> = emptyList(),
+    val dose_per_serving: String? = null,
+    val category: String = "Otro",
+    val usage_instructions: String? = null,
+    val warnings: String? = null,
+    val confidence: String = "",
+    val notes: String? = null
+)
+
+data class NutritionPlanResponse(
+    val plan: NutritionPlan,
+    val ai_powered: Boolean = false
+)
+data class NutritionPlan(
+    val calories: Int = 0,
+    val protein_g: Int = 0,
+    val carbs_g: Int = 0,
+    val fats_g: Int = 0,
+    val meals: List<NutritionPlanMeal> = emptyList(),
+    val notes: String? = null
+)
+data class NutritionPlanMeal(
+    val meal: String = "",
+    val meal_type: String = "SNACK",
+    val numeric: NutritionPlanMealNum? = null
+)
+data class NutritionPlanMealNum(
+    val calories: Int = 0,
+    val protein_g: Int = 0,
+    val carbs_g: Int = 0,
+    val fats_g: Int = 0
+)
+
+data class WeeklyNutritionSummary(
+    val totalMeals: Int = 0,
+    val avgCalories: Int = 0,
+    val avgProtein: Int = 0,
+    val avgCarbs: Int = 0,
+    val avgFats: Int = 0,
+    val totalUnconfirmed: Int = 0,
+    val days: List<WeeklyNutritionDay> = emptyList()
+)
+data class WeeklyNutritionDay(
+    val date: String = "",
+    val calories: Int = 0,
+    val protein_g: Int = 0,
+    val carbs_g: Int = 0,
+    val fats_g: Int = 0,
+    val meals_total: Int = 0,
+    val meals_unconfirmed: Int = 0
+)
 
 // ===== Generic =====
 data class MessageResponse(val message: String)
@@ -229,4 +415,68 @@ data class ShoppingListAggregationResponse(
 
 // ===== Request bodies =====
 data class ToggleRequest(val checked: Boolean)
+data class AddItemRequest(val name: String, val quantity: String? = null)
 data class RecipeIdsRequest(val recipeIds: List<String>)
+
+// ===== Teams =====
+data class TeamMember(
+    val id: String,
+    val user_id: String,
+    val role: String,
+    val user: TeamUser? = null
+)
+data class TeamUser(
+    val id: String,
+    val username: String,
+    val goal: String? = null,
+    val body_type: String? = null
+)
+data class Team(
+    val id: String,
+    val name: String,
+    val admin_id: String,
+    val invite_code: String,
+    val role: String? = null,
+    val members: List<TeamMember> = emptyList(),
+    val shared_routines: List<SharedRoutine> = emptyList(),
+    val posts: List<TeamPost> = emptyList()
+)
+data class SharedRoutine(
+    val id: String,
+    val team_id: String,
+    val routine_id: String,
+    val shared_by: String,
+    val shared_at: String,
+    val routine: Routine? = null,
+    val user: TeamUser? = null
+)
+data class TeamPost(
+    val id: String,
+    val team_id: String,
+    val user_id: String,
+    val content: String,
+    val post_type: String? = null,
+    val routine_id: String? = null,
+    val created_at: String,
+    val user: TeamUser? = null
+)
+data class TeamsResponse(val teams: List<Team>)
+data class TeamResponse(val team: Team, val role: String? = null)
+data class CreateTeamRequest(val name: String)
+data class JoinTeamRequest(val invite_code: String)
+data class ShareRoutineRequest(val routine_id: String)
+data class TeamPostRequest(val content: String)
+data class TeamPostResponse(val post: TeamPost)
+
+// ===== Progress Photos =====
+data class ProgressPhoto(
+    val id: String,
+    val photo_url: String,
+    val weight_logged: Float? = null,
+    val date: String,
+    val created_at: String
+)
+data class ProgressPhotosResponse(val photos: List<ProgressPhoto> = emptyList())
+data class UploadProgressPhotoRequest(val photo_url: String, val weight_logged: Float? = null)
+data class ProgressPhotoResponse(val photo: ProgressPhoto)
+data class UpdateProgressPhotoRequest(val weight_logged: Float? = null)

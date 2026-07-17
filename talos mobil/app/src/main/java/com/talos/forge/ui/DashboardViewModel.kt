@@ -32,7 +32,7 @@ class DashboardViewModel(private val repository: Repository) : ViewModel() {
                 _meals.value = repository.getMeals()
                 _routines.value = repository.getRoutines()
             } catch (e: Exception) {
-                // ignore
+                _routines.value = emptyList()
             } finally {
                 _isLoading.value = false
             }

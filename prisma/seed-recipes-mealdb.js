@@ -410,10 +410,18 @@ function extractIngredients(meal) {
 
 function extractInstructions(meal) {
   if (!meal.strInstructions) return [];
-  return meal.strInstructions
+  let steps = meal.strInstructions
     .split(/\r\n|\n|\r/)
     .map((s) => s.trim())
     .filter((s) => s.length > 10);
+  // If we got only one long paragraph, split by sentences
+  if (steps.length <= 1 && meal.strInstructions.length > 80) {
+    steps = meal.strInstructions
+      .split(/(?<=[.])\s+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 10);
+  }
+  return steps;
 }
 
 function inferMealType(meal) {

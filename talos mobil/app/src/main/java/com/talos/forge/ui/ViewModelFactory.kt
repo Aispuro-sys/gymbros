@@ -30,8 +30,12 @@ class ViewModelFactory(
                 ShoppingViewModel(repository) as T
             modelClass.isAssignableFrom(CommunityViewModel::class.java) ->
                 CommunityViewModel(repository) as T
+            modelClass.isAssignableFrom(TeamsViewModel::class.java) ->
+                TeamsViewModel(repository) as T
             modelClass.isAssignableFrom(ProfileViewModel::class.java) ->
                 ProfileViewModel(repository, sessionManager) as T
+            modelClass.isAssignableFrom(ProgressViewModel::class.java) ->
+                ProgressViewModel(repository) as T
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
     }

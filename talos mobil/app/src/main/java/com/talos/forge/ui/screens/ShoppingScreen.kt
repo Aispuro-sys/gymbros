@@ -1,5 +1,6 @@
 package com.talos.forge.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,13 +12,18 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.talos.forge.ui.ShoppingViewModel
 import com.talos.forge.ui.components.ErrorText
 import com.talos.forge.ui.components.LoadingSpinner
 import com.talos.forge.ui.components.EmptyState
+import com.talos.forge.ui.theme.AppColors
 
 @Composable
 fun ShoppingScreen(viewModel: ShoppingViewModel) {
@@ -27,6 +33,8 @@ fun ShoppingScreen(viewModel: ShoppingViewModel) {
     val shareUrl by viewModel.shareUrl.collectAsState()
 
     var showShareDialog by remember { mutableStateOf(false) }
+    var newItemName by remember { mutableStateOf("") }
+    var newItemQty by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) { viewModel.loadShoppingList() }
 
@@ -41,15 +49,14 @@ fun ShoppingScreen(viewModel: ShoppingViewModel) {
                 ExtendedFloatingActionButton(
                     onClick = { viewModel.shareList(); showShareDialog = true },
                     icon = { Icon(Icons.Default.Share, contentDescription = "Share") },
-                    text = { Text("Compartir") }
+                    text = { Text("Compartir") },
+                    containerColor = AppColors.accent,
+                    contentColor = Color.White
                 )
             }
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
-            Text("Lista de Supermercado", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(16.dp))
-
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp)) {
             error?.let { ErrorText(it) }
 
             if (isLoading && shoppingList == null) {
@@ -57,27 +64,86 @@ fun ShoppingScreen(viewModel: ShoppingViewModel) {
                 return@Column
             }
 
+            // Add item bar - always visible
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = AppColors.cardBg),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = newItemName,
+                        onValueChange = { newItemName = it },
+                        label = { Text("Agregar producto...", color = AppColors.textSecondary) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = AppColors.textPrimary,
+                            unfocusedTextColor = AppColors.textPrimary,
+                            cursorColor = AppColors.accent,
+                            focusedBorderColor = AppColors.accent,
+                            unfocusedBorderColor = AppColors.border,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    OutlinedTextField(
+                        value = newItemQty,
+                        onValueChange = { newItemQty = it },
+                        label = { Text("Cant", color = AppColors.textSecondary) },
+                        modifier = Modifier.width(80.dp),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = AppColors.textPrimary,
+                            unfocusedTextColor = AppColors.textPrimary,
+                            cursorColor = AppColors.accent,
+                            focusedBorderColor = AppColors.accent,
+                            unfocusedBorderColor = AppColors.border,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(
+                        onClick = {
+                            if (newItemName.isNotBlank()) {
+                                viewModel.addItem(newItemName.trim(), newItemQty.ifBlank { null })
+                                newItemName = ""
+                                newItemQty = ""
+                            }
+                        },
+                        modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(AppColors.accent)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Add", tint = Color.White, modifier = Modifier.size(24.dp))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             if (shoppingList == null || items.isEmpty()) {
                 EmptyState(
                     icon = "🛒",
                     title = "Lista vacía",
-                    subtitle = "Genera una lista desde tus comidas o con IA"
+                    subtitle = "Agrega productos arriba o genera con IA"
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                Row(
+                OutlinedButton(
+                    onClick = { viewModel.generateFromAI() },
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.accent)
                 ) {
-                    OutlinedButton(
-                        onClick = { viewModel.generateFromMeals() },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) { Text("🍽️ Comidas") }
-                    OutlinedButton(
-                        onClick = { viewModel.generateFromAI() },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) { Text("🤖 IA") }
+                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Generar con IA")
                 }
                 return@Column
             }
@@ -85,24 +151,32 @@ fun ShoppingScreen(viewModel: ShoppingViewModel) {
             // Progress card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(shoppingList!!.name, color = androidx.compose.ui.graphics.Color.White, fontWeight = FontWeight.Bold)
-                        Text("$checkedCount/$totalCount", color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f), fontSize = 13.sp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Brush.horizontalGradient(listOf(AppColors.gradientStart, AppColors.gradientEnd)))
+                        .padding(18.dp)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(shoppingList!!.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("$checkedCount/$totalCount", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = progress / 100f,
+                            modifier = Modifier.fillMaxWidth().height(6.dp),
+                            color = Color.White,
+                            trackColor = Color.White.copy(alpha = 0.2f)
+                        )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    LinearProgressIndicator(
-                        progress = progress / 100f,
-                        modifier = Modifier.fillMaxWidth().height(6.dp),
-                        color = androidx.compose.ui.graphics.Color.White,
-                        trackColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.2f)
-                    )
                 }
             }
 
@@ -113,9 +187,26 @@ fun ShoppingScreen(viewModel: ShoppingViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedButton(onClick = { viewModel.generateFromMeals() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp)) { Text("🍽️ Comidas") }
-                OutlinedButton(onClick = { viewModel.generateFromAI() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp)) { Text("🤖 IA") }
-                OutlinedButton(onClick = { viewModel.clearList() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp)) { Text("🗑️") }
+                OutlinedButton(
+                    onClick = { viewModel.generateFromAI() },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.accent)
+                ) {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("IA")
+                }
+                OutlinedButton(
+                    onClick = { viewModel.clearList() },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.danger.copy(alpha = 0.8f))
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = null, tint = AppColors.danger.copy(alpha = 0.8f), modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Limpiar")
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -123,30 +214,46 @@ fun ShoppingScreen(viewModel: ShoppingViewModel) {
             // Items list
             LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 items(items) { item ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = AppColors.cardBg),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
-                        Checkbox(
-                            checked = item.checked,
-                            onCheckedChange = { viewModel.toggleItem(item.id, it) }
-                        )
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                item.name,
-                                fontSize = 15.sp,
-                                textDecoration = if (item.checked) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = item.checked,
+                                onCheckedChange = { viewModel.toggleItem(item.id, it) },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = AppColors.accent,
+                                    uncheckedColor = AppColors.textSecondary,
+                                    checkmarkColor = Color.White
+                                )
                             )
-                            if (item.recipe_names.size > 1) {
-                                Text("En ${item.recipe_names.size} recetas", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    item.name,
+                                    fontSize = 15.sp,
+                                    color = if (item.checked) AppColors.textSecondary else AppColors.textPrimary,
+                                    textDecoration = if (item.checked) TextDecoration.LineThrough else null
+                                )
+                                if (item.recipe_names.size > 1) {
+                                    Text("En ${item.recipe_names.size} recetas", fontSize = 11.sp, color = AppColors.textSecondary)
+                                }
                             }
-                        }
-                        item.quantity?.let {
-                            Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        if (item.checked) {
+                            item.quantity?.let {
+                                Text(it, fontSize = 12.sp, color = AppColors.textSecondary)
+                            }
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("✅")
+                            IconButton(
+                                onClick = { viewModel.deleteItem(item.id) },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = "Delete", tint = AppColors.textSecondary, modifier = Modifier.size(16.dp))
+                            }
                         }
                     }
                 }
@@ -157,13 +264,14 @@ fun ShoppingScreen(viewModel: ShoppingViewModel) {
     if (showShareDialog && shareUrl != null) {
         AlertDialog(
             onDismissRequest = { showShareDialog = false; viewModel.clearShareUrl() },
-            title = { Text("🔗 Compartir Lista") },
+            containerColor = AppColors.cardBg,
+            title = { Text("🔗 Compartir Lista", color = AppColors.textPrimary) },
             text = {
                 Column {
-                    Text("Comparte este enlace:")
+                    Text("Comparte este enlace:", color = AppColors.textSecondary)
                     Spacer(modifier = Modifier.height(8.dp))
                     SelectionContainer {
-                        Text(shareUrl!!, fontSize = 13.sp)
+                        Text(shareUrl!!, fontSize = 13.sp, color = AppColors.textPrimary)
                     }
                 }
             },
@@ -174,9 +282,9 @@ fun ShoppingScreen(viewModel: ShoppingViewModel) {
                     clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Share URL", shareUrl!!))
                     showShareDialog = false
                     viewModel.clearShareUrl()
-                }) { Text("Copiar") }
+                }) { Text("Copiar", color = AppColors.accent) }
             },
-            dismissButton = { TextButton(onClick = { showShareDialog = false; viewModel.clearShareUrl() }) { Text("Cerrar") } }
+            dismissButton = { TextButton(onClick = { showShareDialog = false; viewModel.clearShareUrl() }) { Text("Cerrar", color = AppColors.textSecondary) } }
         )
     }
 }

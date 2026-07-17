@@ -8,10 +8,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val LightColors = lightColorScheme(
-    primary = BluePrimary,
-    onPrimary = Color.White,
-    primaryContainer = BlueLight,
-    secondary = BlueDark,
+    primary = Accent,
+    onPrimary = Color(0xFF000014),
+    primaryContainer = AccentLight,
+    secondary = AccentDark,
     background = BgLight,
     onBackground = TextPrimary,
     surface = CardBg,
@@ -23,10 +23,10 @@ private val LightColors = lightColorScheme(
 )
 
 private val DarkColors = darkColorScheme(
-    primary = BlueLight,
-    onPrimary = Color.Black,
-    primaryContainer = BlueDark,
-    secondary = BlueLight,
+    primary = Accent,
+    onPrimary = Color(0xFF000014),
+    primaryContainer = Color(0xFF282828),
+    secondary = Color(0xFF888888),
     background = BgDark,
     onBackground = TextPrimaryDark,
     surface = CardBgDark,
@@ -42,8 +42,9 @@ fun TalosTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
+    val colorScheme = if (darkTheme) DarkColors else LightColors
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
+        colorScheme = colorScheme,
         content = content
     )
 }

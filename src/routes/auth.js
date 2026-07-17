@@ -1,10 +1,41 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 const prisma = require('../lib/prisma');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
+
+const PROFILE_UPLOADS_DIR = path.join(__dirname, '..', 'public', 'uploads', 'profile');
+if (!fs.existsSync(PROFILE_UPLOADS_DIR)) {
+  fs.mkdirSync(PROFILE_UPLOADS_DIR, { recursive: true });
+}
+
+function saveProfilePhoto(dataUrl) {
+  const matches = dataUrl.match(/^data:image\/([a-zA-Z]+);base64,(.+)$/);
+  if (!matches) return null;
+  const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+  const buffer = Buffer.from(matches[2], 'base64');
+  const filename = `${crypto.randomUUID()}.${ext}`;
+  const filepath = path.join(PROFILE_UPLOADS_DIR, filename);
+  fs.writeFileSync(filepath, buffer);
+  return `/uploads/profile/${filename}`;
+}
+
+function deleteProfilePhoto(fileUrl) {
+  if (!fileUrl || !fileUrl.startsWith('/uploads/profile/')) return;
+  const filepath = path.join(__dirname, '..', 'public', fileUrl);
+  try { fs.unlinkSync(filepath); } catch (_) {}
+}
+
+function toFullUrl(req, url) {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+  return `${req.protocol}://${req.get('host')}${url}`;
+}
 
 router.post('/register', async (req, res) => {
   try {
@@ -53,11 +84,34 @@ router.post('/register', async (req, res) => {
         gender: user.gender,
         role: user.role,
         bio: user.bio,
-        profile_photo: user.profile_photo,
+        profile_photo: toFullUrl(req, user.profile_photo),
       },
     });
   } catch (err) {
     console.error('Register error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/check-username', async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ error: 'Username is required' });
+    const existing = await prisma.user.findUnique({ where: { username } });
+    res.json({ available: !existing });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/check-email', async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    res.json({ available: !existing });
+  } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -99,7 +153,7 @@ router.post('/login', async (req, res) => {
         gender: user.gender,
         role: user.role,
         bio: user.bio,
-        profile_photo: user.profile_photo,
+        profile_photo: toFullUrl(req, user.profile_photo),
       },
     });
   } catch (err) {
@@ -130,7 +184,7 @@ router.get('/me', authMiddleware, async (req, res) => {
       },
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json({ user });
+    res.json({ user: { ...user, profile_photo: toFullUrl(req, user.profile_photo) } });
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -139,6 +193,22 @@ router.get('/me', authMiddleware, async (req, res) => {
 router.put('/profile', authMiddleware, async (req, res) => {
   try {
     const { username, age, height_cm, weight_kg, goal, body_type, gender, bio, profile_photo, phone } = req.body;
+
+    let photoToSave = undefined;
+    let oldPhotoUrl = null;
+    if (profile_photo !== undefined) {
+      if (profile_photo && profile_photo.startsWith('data:image/')) {
+        const existing = await prisma.user.findUnique({ where: { id: req.userId }, select: { profile_photo: true } });
+        oldPhotoUrl = existing?.profile_photo;
+        photoToSave = saveProfilePhoto(profile_photo);
+        if (!photoToSave) {
+          return res.status(400).json({ error: 'Invalid image format' });
+        }
+      } else if (profile_photo === null) {
+        photoToSave = null;
+      }
+    }
+
     const updated = await prisma.user.update({
       where: { id: req.userId },
       data: {
@@ -150,7 +220,7 @@ router.put('/profile', authMiddleware, async (req, res) => {
         ...(body_type !== undefined && { body_type }),
         ...(gender !== undefined && { gender }),
         ...(bio !== undefined && { bio }),
-        ...(profile_photo !== undefined && { profile_photo }),
+        ...(photoToSave !== undefined && { profile_photo: photoToSave }),
         ...(phone !== undefined && { phone }),
       },
       select: {
@@ -169,7 +239,10 @@ router.put('/profile', authMiddleware, async (req, res) => {
         profile_photo: true,
       },
     });
-    res.json({ user: updated });
+
+    if (oldPhotoUrl) deleteProfilePhoto(oldPhotoUrl);
+
+    res.json({ user: { ...updated, profile_photo: toFullUrl(req, updated.profile_photo) } });
   } catch (err) {
     console.error('Profile update error:', err);
     res.status(500).json({ error: 'Internal server error' });

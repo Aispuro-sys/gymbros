@@ -267,7 +267,7 @@ Rules:
 - Adjust sets/reps/rest based on goal and day focus`;
 
 function buildWeeklyPrompt(params, availableExercises) {
-  const { age, weight_kg, height_cm, goal, body_type, days_per_week, equipment, notes } = params;
+  const { age, weight_kg, height_cm, goal, body_type, days_per_week, equipment, notes, muscle_groups } = params;
   const goalMap = { BULKING: 'ganancia de masa muscular', CUTTING: 'definición y pérdida de grasa', MAINTENANCE: 'mantenimiento y fuerza general' };
   const bodyTypeMap = { ECTOMORPH: 'ectomorfo (delgado, metabolismo rápido, difícil ganar peso)', MESOMORPH: 'mesomorfo (atlético, responde bien al entrenamiento)', ENDOMORPH: 'endomorfo (tendencia a ganar grasa, metabolismo más lento)' };
   const split = WEEKLY_SPLITS[days_per_week] || WEEKLY_SPLITS[4];
@@ -289,6 +289,12 @@ function buildWeeklyPrompt(params, availableExercises) {
 
   if (notes) prompt += `\n- Additional notes: ${notes}`;
 
+  if (muscle_groups && muscle_groups.length > 0) {
+    const groupLabels = muscle_groups.map((g) => FOCUS_ES[g] || g).join(', ');
+    prompt += `\n- Target muscle groups: ${groupLabels}`;
+    prompt += `\n\nIMPORTANT: The user wants to focus on these specific muscle groups: ${muscle_groups.join(', ')}. Distribute these muscle groups across the training days. Each day should target one or more of these groups. Do NOT include exercises for muscle groups outside this list unless needed for warm-up or core stability.`;
+  }
+
   prompt += `\n\nWeekly split to follow:
 ${split.map((d) => `Day ${d.day} (${d.label}): ${d.focus}`).join('\n')}
 
@@ -307,7 +313,7 @@ const BODY_TYPE_CONFIG = {
 };
 
 function generateFallbackWeekly(params) {
-  const { goal, equipment, days_per_week, body_type, weight_kg, height_cm } = params;
+  const { goal, equipment, days_per_week, body_type, weight_kg, height_cm, muscle_groups } = params;
   const all = getExercises();
   const split = WEEKLY_SPLITS[days_per_week] || WEEKLY_SPLITS[4];
   const cfg = GOAL_CONFIG[goal] || GOAL_CONFIG.MAINTENANCE;
@@ -323,13 +329,28 @@ function generateFallbackWeekly(params) {
     filtered = filtered.filter((e) => e.equipment === equipment);
   }
 
+  // If muscle_groups specified, filter exercises to those categories
+  if (muscle_groups && muscle_groups.length > 0) {
+    const targetCats = muscle_groups.flatMap((g) => FOCUS_MAP[g] || [g]);
+    filtered = filtered.filter((e) => targetCats.includes(e.category));
+  }
+
   const exerciseCount = Math.round(6 * btCfg.volumeMultiplier);
 
   const days = split.map((dayInfo) => {
-    const targetCats = FOCUS_MAP[dayInfo.focus] || FOCUS_MAP['full body'];
-    let selected = filtered.filter((e) => targetCats.includes(e.category));
-    if (selected.length < 5) {
-      selected = filtered.slice(0, 8);
+    let selected;
+    if (muscle_groups && muscle_groups.length > 0) {
+      // Use all filtered exercises (already narrowed to muscle groups)
+      selected = filtered;
+      if (selected.length < 5) {
+        selected = all.filter((e) => (!equipment || equipment === 'all' || e.equipment === equipment));
+      }
+    } else {
+      const targetCats = FOCUS_MAP[dayInfo.focus] || FOCUS_MAP['full body'];
+      selected = filtered.filter((e) => targetCats.includes(e.category));
+      if (selected.length < 5) {
+        selected = filtered.slice(0, 8);
+      }
     }
     const shuffled = [...selected].sort(() => Math.random() - 0.5).slice(0, exerciseCount);
     const pool = selected.filter((e) => !shuffled.includes(e));
@@ -385,6 +406,10 @@ async function generateWeeklyRoutine(params) {
       let availableExercises = getExercises();
       if (params.equipment && params.equipment !== 'all') {
         availableExercises = availableExercises.filter((e) => e.equipment === params.equipment);
+      }
+      if (params.muscle_groups && params.muscle_groups.length > 0) {
+        const targetCats = params.muscle_groups.flatMap((g) => FOCUS_MAP[g] || [g]);
+        availableExercises = availableExercises.filter((e) => targetCats.includes(e.category));
       }
       availableExercises = availableExercises.slice(0, 200);
       const userPrompt = buildWeeklyPrompt(params, availableExercises);

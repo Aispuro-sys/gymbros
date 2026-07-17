@@ -24,7 +24,7 @@ function validateProfileComplete(user) {
 // Generate a full weekly plan — creates multiple routines with day_of_week
 router.post('/generate-weekly', async (req, res) => {
   try {
-    const { days_per_week, equipment, notes } = req.body;
+    const { days_per_week, equipment, notes, muscle_groups } = req.body;
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
 
     const profileError = validateProfileComplete(user);
@@ -39,6 +39,7 @@ router.post('/generate-weekly', async (req, res) => {
       days_per_week: days_per_week || 4,
       equipment: equipment || 'all',
       notes,
+      muscle_groups: muscle_groups || [],
     };
 
     const result = await generateWeeklyRoutine(params);

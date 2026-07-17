@@ -15,12 +15,13 @@ const communityRoutes = require('./routes/community');
 const recipeRoutes = require('./routes/recipes');
 const shoppingListRoutes = require('./routes/shoppingList');
 const shoppingListPublicRoutes = require('./routes/shoppingListPublic');
+const progressRoutes = require('./routes/progress');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '15mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
 app.use('/exercises-dataset', express.static(path.join(__dirname, '..', 'exercises-dataset')));
@@ -37,6 +38,7 @@ app.use('/api/community', communityRoutes);
 app.use('/api/recipes', recipeRoutes);
 app.use('/api/shopping-list', shoppingListRoutes);
 app.use('/api/shopping-list-public', shoppingListPublicRoutes);
+app.use('/api/progress', progressRoutes);
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));

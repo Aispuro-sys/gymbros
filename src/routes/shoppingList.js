@@ -100,6 +100,75 @@ router.put('/:listId/items/:itemId', async (req, res) => {
   }
 });
 
+// Add single item to existing list (or create list if none)
+router.post('/:listId/items', async (req, res) => {
+  try {
+    const { name, quantity } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Item name required' });
+    }
+
+    let list = await prisma.shoppingList.findUnique({
+      where: { id: req.params.listId },
+    });
+    if (!list || list.user_id !== req.userId) {
+      return res.status(404).json({ error: 'List not found' });
+    }
+
+    const maxOrder = await prisma.shoppingListItem.aggregate({
+      where: { shopping_list_id: list.id },
+      _max: { order_index: true },
+    });
+
+    const item = await prisma.shoppingListItem.create({
+      data: {
+        shopping_list_id: list.id,
+        name: name.trim(),
+        quantity: quantity || null,
+        checked: false,
+        recipe_names: [],
+        order_index: (maxOrder._max.order_index ?? -1) + 1,
+      },
+    });
+
+    const fullList = await prisma.shoppingList.findUnique({
+      where: { id: list.id },
+      include: { items: { orderBy: { order_index: 'asc' } } },
+    });
+
+    res.json({ list: fullList });
+  } catch (err) {
+    console.error('Add item error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete single item from list
+router.delete('/:listId/items/:itemId', async (req, res) => {
+  try {
+    const list = await prisma.shoppingList.findUnique({
+      where: { id: req.params.listId },
+    });
+    if (!list || list.user_id !== req.userId) {
+      return res.status(404).json({ error: 'List not found' });
+    }
+
+    await prisma.shoppingListItem.delete({
+      where: { id: req.params.itemId },
+    });
+
+    const fullList = await prisma.shoppingList.findUnique({
+      where: { id: list.id },
+      include: { items: { orderBy: { order_index: 'asc' } } },
+    });
+
+    res.json({ list: fullList });
+  } catch (err) {
+    console.error('Delete item error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Generate share token
 router.post('/:listId/share', async (req, res) => {
   try {

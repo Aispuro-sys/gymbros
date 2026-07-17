@@ -1,23 +1,32 @@
 package com.talos.forge.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.talos.forge.ui.DashboardViewModel
-import com.talos.forge.ui.components.EmptyState
 import com.talos.forge.ui.components.LoadingSpinner
-import com.talos.forge.ui.components.SectionCard
+import com.talos.forge.ui.theme.AppColors
 
 @Composable
-fun DashboardScreen(viewModel: DashboardViewModel) {
+fun DashboardScreen(viewModel: DashboardViewModel, onNavigate: (String) -> Unit = {}) {
     val isLoading by viewModel.isLoading.collectAsState()
     val macros by viewModel.macros.collectAsState()
     val meals by viewModel.meals.collectAsState()
@@ -31,65 +40,237 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            text = "Dashboard",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // Macros summary
+        // Macros card con gradiente
         macros?.let { m ->
-            SectionCard(title = "Macros de Hoy") {
+            GradientMacroCard(
+                calories = m.calories.toString(),
+                protein = "${m.protein_g}g",
+                carbs = "${m.carbs_g}g",
+                fats = "${m.fats_g}g"
+            )
+        } ?: run {
+            GradientMacroCard(calories = "0", protein = "0g", carbs = "0g", fats = "0g")
+        }
+
+        // Comidas de hoy
+        StatCard(
+            title = "Comidas de Hoy",
+            count = meals.size,
+            icon = Icons.Default.Restaurant,
+            accentColor = Color(0xFFFF7043),
+            onClick = { onNavigate("nutrition") }
+        ) {
+            if (meals.isEmpty()) {
+                EmptyHint("Sin comidas registradas")
+            } else {
+                meals.take(4).forEach { meal ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFFF7043).copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.LocalDining,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFF7043),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(meal.name, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        Text(
+                            "${meal.calories} cal",
+                            fontSize = 13.sp,
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+
+        // Rutinas
+        StatCard(
+            title = "Mis Rutinas",
+            count = routines.size,
+            icon = Icons.Default.FitnessCenter,
+            accentColor = Color(0xFF5C6BC0),
+            onClick = { onNavigate("routines") }
+        ) {
+            if (routines.isEmpty()) {
+                EmptyHint("Sin rutinas creadas")
+            } else {
+                routines.take(4).forEach { routine ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF5C6BC0).copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.FitnessCenter,
+                                    contentDescription = null,
+                                    tint = Color(0xFF5C6BC0),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(routine.name, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        Text(
+                            "${routine.exercises.size} ej",
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.7f),
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Quick access grid
+        Text("Acceso Rápido", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.9f))
+        QuickAccessGrid(onNavigate = onNavigate)
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun QuickAccessGrid(onNavigate: (String) -> Unit) {
+    val items = listOf(
+        QuickItem("Suplementos", Icons.Default.Medication, Color(0xFFA0F03C), "supplements"),
+        QuickItem("Recetas", Icons.Default.MenuBook, Color(0xFFFF7043), "recipes"),
+        QuickItem("Compras", Icons.Default.ShoppingCart, Color(0xFF42A5F5), "shopping"),
+        QuickItem("Comunidad", Icons.Default.Forum, Color(0xFFA0F03C), "community"),
+        QuickItem("Equipos", Icons.Default.Groups, Color(0xFF5C6BC0), "teams"),
+        QuickItem("Perfil", Icons.Default.Person, Color(0xFF9E9E9E), "profile")
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        items.chunked(3).forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                rowItems.forEach { item ->
+                    QuickAccessCard(item = item, onClick = { onNavigate(item.route) }, modifier = Modifier.weight(1f))
+                }
+                repeat(3 - rowItems.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+private data class QuickItem(val title: String, val icon: ImageVector, val color: Color, val route: String)
+
+@Composable
+private fun QuickAccessCard(item: QuickItem, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF262626)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier.size(40.dp).clip(CircleShape).background(item.color.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(item.icon, contentDescription = item.title, tint = item.color, modifier = Modifier.size(22.dp))
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(item.title, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.9f))
+        }
+    }
+}
+
+@Composable
+private fun GradientMacroCard(
+    calories: String,
+    protein: String,
+    carbs: String,
+    fats: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(Color(0xFF2A2A2A), Color(0xFF4D4D4D))
+                    )
+                )
+                .padding(20.dp)
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Macros de Hoy",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Icon(
+                        Icons.Default.LocalFireDepartment,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    MacroItem("Cal", m.calories.toString(), Icons.Default.LocalFireDepartment)
-                    MacroItem("Prot", "${m.protein_g}g", Icons.Default.FitnessCenter)
-                    MacroItem("Carb", "${m.carbs_g}g", Icons.Default.Grain)
-                    MacroItem("Gras", "${m.fats_g}g", Icons.Default.Opacity)
-                }
-            }
-        } ?: run {
-            SectionCard(title = "Macros de Hoy") {
-                Text("No hay datos registrados", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-
-        // Meals today
-        SectionCard(title = "Comidas de Hoy (${meals.size})") {
-            if (meals.isEmpty()) {
-                Text("Sin comidas registradas", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                meals.take(3).forEach { meal ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(meal.name, fontSize = 14.sp)
-                        Text("${meal.calories} cal", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-        }
-
-        // Routines
-        SectionCard(title = "Mis Rutinas (${routines.size})") {
-            if (routines.isEmpty()) {
-                Text("Sin rutinas creadas", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                routines.take(3).forEach { routine ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(routine.name, fontSize = 14.sp)
-                        Text("${routine.exercises.size} ejercicios", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    MacroPill("Calorías", calories, Icons.Default.LocalFireDepartment)
+                    MacroPill("Proteína", protein, Icons.Default.FitnessCenter)
+                    MacroPill("Carbs", carbs, Icons.Default.Grain)
+                    MacroPill("Grasas", fats, Icons.Default.Opacity)
                 }
             }
         }
@@ -97,11 +278,84 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
 }
 
 @Composable
-private fun MacroItem(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+private fun MacroPill(label: String, value: String, icon: ImageVector) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(imageVector = icon, contentDescription = label, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-        Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(20.dp))
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        Text(label, fontSize = 10.sp, color = Color.White.copy(alpha = 0.8f))
+    }
+}
+
+@Composable
+private fun StatCard(
+    title: String,
+    count: Int,
+    icon: ImageVector,
+    accentColor: Color,
+    onClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().then(
+            if (onClick != null) Modifier.clickable { onClick() } else Modifier
+        ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF262626)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(accentColor.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+                Text(
+                    "$count",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = accentColor
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            content()
+        }
+    }
+}
+
+@Composable
+private fun EmptyHint(text: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text,
+            fontSize = 13.sp,
+            color = Color.White.copy(alpha = 0.6f)
+        )
     }
 }

@@ -2,6 +2,7 @@ package com.talos.forge.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.talos.forge.data.ErrorUtils
 import com.talos.forge.data.Repository
 import com.talos.forge.data.SessionManager
 import com.talos.forge.data.models.User
@@ -10,7 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class AuthViewModel(
-    private val repository: Repository,
+    val repository: Repository,
     private val sessionManager: SessionManager
 ) : ViewModel() {
 
@@ -42,7 +43,7 @@ class AuthViewModel(
                 _currentUser.value = response.user
                 _isLoggedIn.value = true
             } catch (e: Exception) {
-                _error.value = e.message ?: "Error al iniciar sesión"
+                _error.value = ErrorUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false
             }
@@ -66,7 +67,7 @@ class AuthViewModel(
                 _currentUser.value = response.user
                 _isLoggedIn.value = true
             } catch (e: Exception) {
-                _error.value = e.message ?: "Error al registrarse"
+                _error.value = ErrorUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false
             }
