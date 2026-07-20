@@ -9,6 +9,8 @@ import androidx.lifecycle.viewModelScope
 import com.talos.forge.data.Repository
 import com.talos.forge.data.ErrorUtils
 import com.talos.forge.data.models.ProgressPhoto
+import com.talos.forge.data.models.TrackingStats
+import com.talos.forge.data.models.WorkoutLog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,6 +21,9 @@ class ProgressViewModel(private val repository: Repository) : ViewModel() {
 
     private val _photos = MutableStateFlow<List<ProgressPhoto>>(emptyList())
     val photos: StateFlow<List<ProgressPhoto>> = _photos.asStateFlow()
+
+    private val _stats = MutableStateFlow(TrackingStats())
+    val stats: StateFlow<TrackingStats> = _stats.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -31,6 +36,24 @@ class ProgressViewModel(private val repository: Repository) : ViewModel() {
 
     private val _selectedPhotoIndex = MutableStateFlow(-1)
     val selectedPhotoIndex: StateFlow<Int> = _selectedPhotoIndex.asStateFlow()
+
+    private val _workoutLogs = MutableStateFlow<List<WorkoutLog>>(emptyList())
+    val workoutLogs: StateFlow<List<WorkoutLog>> = _workoutLogs.asStateFlow()
+
+    fun loadAll() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                _photos.value = repository.getProgressPhotos()
+                _stats.value = repository.getTrackingStats()
+                _workoutLogs.value = repository.getWorkoutLogs()
+            } catch (e: Exception) {
+                _error.value = ErrorUtils.getErrorMessage(e)
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
 
     fun loadPhotos() {
         viewModelScope.launch {
@@ -45,7 +68,22 @@ class ProgressViewModel(private val repository: Repository) : ViewModel() {
         }
     }
 
-    fun uploadPhoto(uri: Uri, context: android.content.Context, weight: Float? = null) {
+    fun loadStats() {
+        viewModelScope.launch {
+            try {
+                _stats.value = repository.getTrackingStats()
+            } catch (e: Exception) {
+                _error.value = ErrorUtils.getErrorMessage(e)
+            }
+        }
+    }
+
+    fun uploadPhoto(
+        uri: Uri, context: android.content.Context, weight: Float? = null,
+        waistCm: Float? = null, chestCm: Float? = null, hipCm: Float? = null,
+        armCm: Float? = null, legCm: Float? = null, bodyFatPct: Float? = null,
+        note: String? = null
+    ) {
         viewModelScope.launch {
             _isUploading.value = true
             try {
@@ -76,8 +114,34 @@ class ProgressViewModel(private val repository: Repository) : ViewModel() {
                 val base64 = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
                 val dataUrl = "data:image/jpeg;base64,$base64"
 
-                repository.uploadProgressPhoto(dataUrl, weight)
-                loadPhotos()
+                repository.uploadProgressPhoto(
+                    photoUrl = dataUrl, weight = weight,
+                    waistCm = waistCm, chestCm = chestCm, hipCm = hipCm,
+                    armCm = armCm, legCm = legCm, bodyFatPct = bodyFatPct, note = note
+                )
+                loadAll()
+            } catch (e: Exception) {
+                _error.value = ErrorUtils.getErrorMessage(e)
+            } finally {
+                _isUploading.value = false
+            }
+        }
+    }
+
+    fun logMeasurements(
+        weight: Float? = null, waistCm: Float? = null, chestCm: Float? = null,
+        hipCm: Float? = null, armCm: Float? = null, legCm: Float? = null,
+        bodyFatPct: Float? = null, note: String? = null
+    ) {
+        viewModelScope.launch {
+            _isUploading.value = true
+            try {
+                repository.uploadProgressPhoto(
+                    photoUrl = null, weight = weight,
+                    waistCm = waistCm, chestCm = chestCm, hipCm = hipCm,
+                    armCm = armCm, legCm = legCm, bodyFatPct = bodyFatPct, note = note
+                )
+                loadAll()
             } catch (e: Exception) {
                 _error.value = ErrorUtils.getErrorMessage(e)
             } finally {
@@ -100,7 +164,7 @@ class ProgressViewModel(private val repository: Repository) : ViewModel() {
     fun updateWeight(id: String, weight: Float?) {
         viewModelScope.launch {
             try {
-                val updated = repository.updateProgressPhoto(id, weight)
+                val updated = repository.updateProgressPhoto(id, weight = weight)
                 _photos.value = _photos.value.map { if (it.id == id) updated else it }
             } catch (e: Exception) {
                 _error.value = ErrorUtils.getErrorMessage(e)
@@ -118,5 +182,28 @@ class ProgressViewModel(private val repository: Repository) : ViewModel() {
 
     fun clearError() {
         _error.value = null
+    }
+
+    fun logWorkout(type: String, durationMin: Int? = null, intensity: String? = null, notes: String? = null, date: String? = null) {
+        viewModelScope.launch {
+            try {
+                repository.createWorkoutLog(type, durationMin, intensity, notes, date)
+                loadAll()
+            } catch (e: Exception) {
+                _error.value = ErrorUtils.getErrorMessage(e)
+            }
+        }
+    }
+
+    fun deleteWorkoutLog(id: String) {
+        viewModelScope.launch {
+            try {
+                repository.deleteWorkoutLog(id)
+                _workoutLogs.value = _workoutLogs.value.filter { it.id != id }
+                loadStats()
+            } catch (e: Exception) {
+                _error.value = ErrorUtils.getErrorMessage(e)
+            }
+        }
     }
 }

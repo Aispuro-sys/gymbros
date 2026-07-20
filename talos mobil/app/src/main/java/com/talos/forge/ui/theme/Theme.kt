@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.Color
 
 private val LightColors = lightColorScheme(
     primary = Accent,
-    onPrimary = Color(0xFF000014),
+    onPrimary = Color.White,
     primaryContainer = AccentLight,
     secondary = AccentDark,
     background = BgLight,
@@ -23,10 +23,10 @@ private val LightColors = lightColorScheme(
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Accent,
-    onPrimary = Color(0xFF000014),
-    primaryContainer = Color(0xFF282828),
-    secondary = Color(0xFF888888),
+    primary = AccentDarkTheme,
+    onPrimary = Color(0xFF000000),
+    primaryContainer = Color(0xFF262626),
+    secondary = Color(0xFFA3A3A3),
     background = BgDark,
     onBackground = TextPrimaryDark,
     surface = CardBgDark,

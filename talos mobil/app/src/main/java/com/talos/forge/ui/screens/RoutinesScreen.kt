@@ -37,9 +37,9 @@ import com.talos.forge.ui.RoutinesViewModel
 import com.talos.forge.ui.components.ErrorText
 import com.talos.forge.ui.components.LoadingSpinner
 import com.talos.forge.ui.theme.AppColors
+import com.talos.forge.data.ApiClient
 
-private const val STATIC_BASE = "http://100.113.102.34:3000/exercises-dataset/"
-private fun assetUrl(path: String?) = if (path != null) STATIC_BASE + path else null
+private fun assetUrl(path: String?) = if (path != null) ApiClient.staticBaseUrl + path else null
 
 private val DAY_NAMES = listOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
 
@@ -62,6 +62,8 @@ fun RoutinesScreen(viewModel: RoutinesViewModel) {
     var expandedRoutineId by remember { mutableStateOf<String?>(null) }
     var selectedExercise by remember { mutableStateOf<Exercise?>(null) }
     var showExerciseDetail by remember { mutableStateOf(false) }
+    var showExerciseExplorer by remember { mutableStateOf(false) }
+    var explorerRoutineId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(aiMessage) {
         if (aiMessage != null) {
@@ -71,30 +73,37 @@ fun RoutinesScreen(viewModel: RoutinesViewModel) {
 
     LaunchedEffect(Unit) { viewModel.loadRoutines() }
 
-    Scaffold(
-        floatingActionButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FloatingActionButton(
-                    onClick = { showAIPlanDialog = true },
-                    containerColor = Color(0xFF3D3D3D),
-                    contentColor = Color.White
-                ) {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = "AI Plan")
+    Scaffold { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp)) {
+            // Top header with title and action buttons
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("Rutinas", fontSize = 24.sp, fontWeight = FontWeight.Black, color = AppColors.textPrimary)
+                    Text("Tu plan de entrenamiento", fontSize = 12.sp, color = AppColors.textSecondary)
                 }
-                FloatingActionButton(
-                    onClick = { showAddRoutineDialog = true },
-                    containerColor = Color.White,
-                    contentColor = Color(0xFF141414)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    IconButton(
+                        onClick = { showAIPlanDialog = true },
+                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(AppColors.accentMuted)
+                    ) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = "Plan IA", tint = AppColors.accent, modifier = Modifier.size(20.dp))
+                    }
+                    IconButton(
+                        onClick = { showAddRoutineDialog = true },
+                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(AppColors.accent)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Nueva rutina", tint = AppColors.textOnAccent, modifier = Modifier.size(20.dp))
+                    }
                 }
             }
-        }
-    ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp)) {
+
             // View mode selector
             SingleChoiceSegmentedButtonRow(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
             ) {
                 val modes = listOf(
                     RoutinesViewModel.ViewMode.LIST to "Lista",
@@ -107,10 +116,10 @@ fun RoutinesScreen(viewModel: RoutinesViewModel) {
                         onClick = { viewModel.setViewMode(mode) },
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
                         colors = SegmentedButtonDefaults.colors(
-                            activeContainerColor = Color.White,
-                            activeContentColor = Color(0xFF141414),
-                            inactiveContainerColor = Color(0xFF282828),
-                            inactiveContentColor = Color.White.copy(alpha = 0.7f)
+                            activeContainerColor = AppColors.accent,
+                            activeContentColor = AppColors.textOnAccent,
+                            inactiveContainerColor = AppColors.cardBgAlt,
+                            inactiveContentColor = AppColors.textSecondary
                         )
                     ) {
                         Text(label, fontSize = 13.sp, fontWeight = if (viewMode == mode) FontWeight.Bold else FontWeight.Normal)
@@ -142,6 +151,10 @@ fun RoutinesScreen(viewModel: RoutinesViewModel) {
                             onDeleteExercise = { exId -> viewModel.deleteExercise(routine.id, exId) },
                             completedExercises = completedExercises,
                             onToggleComplete = { exId -> viewModel.toggleExerciseComplete(exId) },
+                            onAddExercise = {
+                                explorerRoutineId = routine.id
+                                showExerciseExplorer = true
+                            },
                             progress = viewModel.getRoutineProgress(routine)
                         )
                     }
@@ -222,24 +235,43 @@ fun RoutinesScreen(viewModel: RoutinesViewModel) {
         )
     }
 
+    if (showExerciseExplorer && explorerRoutineId != null) {
+        ExerciseExplorerDialog(
+            onDismiss = { showExerciseExplorer = false; explorerRoutineId = null },
+            searchResults = searchResults,
+            isSearching = isSearching,
+            onSearch = { query, equipment -> viewModel.searchExercises(query, equipment) },
+            onAddExercise = { datasetId, name, sets, reps, rest ->
+                viewModel.addExercise(
+                    routineId = explorerRoutineId!!,
+                    name = name,
+                    sets = sets,
+                    reps = reps,
+                    restSeconds = rest,
+                    datasetId = datasetId
+                )
+            }
+        )
+    }
+
     if (showAISuccess && aiMessage != null) {
         AlertDialog(
             onDismissRequest = { showAISuccess = false; viewModel.clearAiMessage() },
-            containerColor = Color(0xFF1F1F1F),
+            containerColor = AppColors.cardBg,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color(0xFFA0F03C), modifier = Modifier.size(24.dp))
+                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(24.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Plan Generado", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Plan Generado", color = AppColors.textPrimary, fontWeight = FontWeight.Bold)
                 }
             },
             text = {
-                Text(aiMessage!!, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+                Text(aiMessage!!, color = AppColors.textSecondary, fontSize = 14.sp)
             },
             confirmButton = {
                 Button(
                     onClick = { showAISuccess = false; viewModel.clearAiMessage() },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF141414))
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.accent, contentColor = AppColors.textOnAccent)
                 ) {
                     Text("Ver mi plan")
                 }
@@ -255,11 +287,11 @@ private fun EmptyRoutines() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(56.dp))
+        Icon(Icons.Default.Add, contentDescription = null, tint = AppColors.textTertiary, modifier = Modifier.size(56.dp))
         Spacer(modifier = Modifier.height(12.dp))
-        Text("Sin rutinas", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        Text("Sin rutinas", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
         Spacer(modifier = Modifier.height(4.dp))
-        Text("Crea una rutina o genera un plan con IA", fontSize = 13.sp, color = Color.White.copy(alpha = 0.6f), textAlign = TextAlign.Center)
+        Text("Crea una rutina o genera un plan con IA", fontSize = 13.sp, color = AppColors.textSecondary, textAlign = TextAlign.Center)
     }
 }
 
@@ -273,12 +305,14 @@ private fun RoutineCard(
     onDeleteExercise: (String) -> Unit,
     completedExercises: Set<String> = emptySet(),
     onToggleComplete: (String) -> Unit = {},
+    onAddExercise: () -> Unit = {},
     progress: Float = 0f
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF282828)),
+        colors = CardDefaults.cardColors(containerColor = AppColors.cardBg),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.border),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
@@ -292,21 +326,21 @@ private fun RoutineCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
-                        modifier = Modifier.size(36.dp).clip(CircleShape).background(Color(0xFF5C6BC0).copy(alpha = 0.15f)),
+                        modifier = Modifier.size(36.dp).clip(CircleShape).background(AppColors.accentMuted),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF7986CB), modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Add, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(20.dp))
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
-                        Text(routine.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        val dayLabel = if (routine.day_of_week != null && routine.day_of_week in 0..6) DAY_NAMES[routine.day_of_week] else null
+                        Text(routine.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        val dayLabel = if (routine.day_of_week != null && routine.day_of_week in 1..7) DAY_NAMES[routine.day_of_week - 1] else null
                         val subtitle = buildString {
                             append("${routine.exercises.size} ejercicios")
                             if (routine.ai_generated) append(" · IA")
                             if (dayLabel != null) append(" · $dayLabel")
                         }
-                        Text(subtitle, fontSize = 11.sp, color = Color.White.copy(alpha = 0.6f))
+                        Text(subtitle, fontSize = 11.sp, color = AppColors.textSecondary)
                     }
                 }
                 Row {
@@ -314,11 +348,11 @@ private fun RoutineCard(
                         Icon(
                             if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                             contentDescription = "Expand",
-                            tint = Color.White.copy(alpha = 0.8f)
+                            tint = AppColors.textSecondary
                         )
                     }
                     IconButton(onClick = onDeleteRoutine) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFE53935).copy(alpha = 0.9f))
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = AppColors.danger)
                     }
                 }
             }
@@ -334,19 +368,19 @@ private fun RoutineCard(
                     LinearProgressIndicator(
                         progress = progress,
                         modifier = Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(3.dp)),
-                        color = if (progress >= 1f) Color(0xFFA0F03C) else Color.White,
-                        trackColor = Color.White.copy(alpha = 0.15f)
+                        color = AppColors.accent,
+                        trackColor = AppColors.cardBgAlt
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         "$completedCount/${routine.exercises.size}",
                         fontSize = 11.sp,
-                        color = if (progress >= 1f) Color(0xFFA0F03C) else Color.White.copy(alpha = 0.6f),
+                        color = if (progress >= 1f) AppColors.accent else AppColors.textSecondary,
                         fontWeight = FontWeight.Medium
                     )
                     if (progress >= 1f) {
                         Spacer(modifier = Modifier.width(6.dp))
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFFA0F03C), modifier = Modifier.size(14.dp))
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(14.dp))
                     }
                 }
             }
@@ -358,7 +392,7 @@ private fun RoutineCard(
             ) {
                 Column(modifier = Modifier.padding(top = 12.dp)) {
                     if (routine.exercises.isEmpty()) {
-                        Text("Sin ejercicios", fontSize = 13.sp, color = Color.White.copy(alpha = 0.5f))
+                        Text("Sin ejercicios", fontSize = 13.sp, color = AppColors.textSecondary)
                     } else {
                         routine.exercises.forEach { ex ->
                             ExerciseRow(
@@ -369,6 +403,20 @@ private fun RoutineCard(
                                 onDelete = { onDeleteExercise(ex.id) }
                             )
                         }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = onAddExercise,
+                        modifier = Modifier.fillMaxWidth().height(42.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = AppColors.accent
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.border)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Agregar ejercicio", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -392,16 +440,16 @@ private fun ExerciseRow(
             checked = isCompleted,
             onCheckedChange = { onToggleComplete() },
             colors = CheckboxDefaults.colors(
-                checkedColor = Color(0xFFA0F03C),
-                uncheckedColor = Color.White.copy(alpha = 0.4f),
-                checkmarkColor = Color.White
+                checkedColor = AppColors.accent,
+                uncheckedColor = AppColors.textTertiary,
+                checkmarkColor = AppColors.textOnAccent
             ),
             modifier = Modifier.size(36.dp)
         )
         val gifUrl = assetUrl(exercise.gif_url)
         val imgUrl = assetUrl(exercise.image)
         Box(
-            modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF141414)),
+            modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(AppColors.cardBgAlt),
             contentAlignment = Alignment.Center
         ) {
             if (gifUrl != null) {
@@ -419,7 +467,7 @@ private fun ExerciseRow(
                     contentScale = ContentScale.Crop
                 )
             } else {
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Add, contentDescription = null, tint = AppColors.textSecondary, modifier = Modifier.size(20.dp))
             }
         }
         Spacer(modifier = Modifier.width(8.dp))
@@ -428,7 +476,7 @@ private fun ExerciseRow(
                 exercise.name,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (isCompleted) Color.White.copy(alpha = 0.5f) else Color.White,
+                color = if (isCompleted) AppColors.textSecondary else AppColors.textPrimary,
                 textDecoration = if (isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -436,14 +484,14 @@ private fun ExerciseRow(
             Text(
                 "${exercise.sets}x${exercise.reps} · ${exercise.rest_seconds}s descanso",
                 fontSize = 11.sp,
-                color = Color.White.copy(alpha = if (isCompleted) 0.4f else 0.6f)
+                color = AppColors.textSecondary
             )
         }
         IconButton(onClick = onClick) {
-            Icon(Icons.Default.Info, contentDescription = "Detail", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.Info, contentDescription = "Detail", tint = AppColors.textSecondary, modifier = Modifier.size(18.dp))
         }
         IconButton(onClick = onDelete) {
-            Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color(0xFFE53935).copy(alpha = 0.8f), modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.Close, contentDescription = "Remove", tint = AppColors.danger, modifier = Modifier.size(16.dp))
         }
     }
 }
@@ -459,8 +507,8 @@ private fun WeeklyView(
     onToggleComplete: (String) -> Unit = {},
     getProgress: (Routine) -> Float = { 0f }
 ) {
-    val today = remember { Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - 1 }
-    val byDay = remember { routines.groupBy { it.day_of_week ?: 99 } }
+    val today = remember { (Calendar.getInstance().get(Calendar.DAY_OF_WEEK) + 5) % 7 }
+    val byDay = remember { routines.groupBy { it.day_of_week?.minus(1) ?: 99 } }
     val allDays = remember { (0..6).toList() }
     val unassigned = remember { byDay[99] ?: emptyList() }
     var selectedDay by remember { mutableIntStateOf(today) }
@@ -474,7 +522,8 @@ private fun WeeklyView(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2E))
+                colors = CardDefaults.cardColors(containerColor = AppColors.cardBg),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.border)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     val totalEx = routines.sumOf { it.exercises.size }
@@ -484,20 +533,20 @@ private fun WeeklyView(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Esta semana", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Esta semana", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
                         Text(
                             "$completedEx/$totalEx",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFA0F03C)
+                            color = AppColors.accent
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(
                         progress = if (totalEx > 0) completedEx.toFloat() / totalEx else 0f,
                         modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-                        color = Color(0xFFA0F03C),
-                        trackColor = Color.White.copy(alpha = 0.15f)
+                        color = AppColors.accent,
+                        trackColor = AppColors.cardBgAlt
                     )
                 }
             }
@@ -521,11 +570,11 @@ private fun WeeklyView(
                             .clip(RoundedCornerShape(14.dp))
                             .background(
                                 when {
-                                    isSelected && isToday -> Color(0xFFA0F03C).copy(alpha = 0.25f)
-                                    isSelected -> Color(0xFFA0F03C).copy(alpha = 0.25f)
-                                    isToday -> Color(0xFFA0F03C).copy(alpha = 0.1f)
-                                    hasRoutines -> Color(0xFF282828)
-                                    else -> Color(0xFF141414)
+                                    isSelected && isToday -> AppColors.accentMuted
+                                    isSelected -> AppColors.accentMuted
+                                    isToday -> AppColors.accent.copy(alpha = 0.08f)
+                                    hasRoutines -> AppColors.cardBgAlt
+                                    else -> AppColors.cardBgSubtle
                                 }
                             )
                             .clickable { selectedDay = day }
@@ -537,10 +586,10 @@ private fun WeeklyView(
                             fontSize = 11.sp,
                             fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
                             color = when {
-                                isToday -> Color(0xFFA0F03C)
-                                isSelected -> Color(0xFFB8F56A)
-                                hasRoutines -> Color.White
-                                else -> Color.White.copy(alpha = 0.4f)
+                                isToday -> AppColors.accent
+                                isSelected -> AppColors.accent
+                                hasRoutines -> AppColors.textPrimary
+                                else -> AppColors.textTertiary
                             }
                         )
                         Spacer(modifier = Modifier.height(6.dp))
@@ -550,11 +599,11 @@ private fun WeeklyView(
                                 .clip(CircleShape)
                                 .background(
                                     when {
-                                        isSelected && isToday -> Color(0xFFA0F03C)
-                                        isSelected -> Color(0xFFA0F03C)
-                                        isToday -> Color(0xFFA0F03C).copy(alpha = 0.3f)
-                                        hasRoutines -> Color.White.copy(alpha = 0.15f)
-                                        else -> Color.White.copy(alpha = 0.05f)
+                                        isSelected && isToday -> AppColors.accent
+                                        isSelected -> AppColors.accent
+                                        isToday -> AppColors.accent.copy(alpha = 0.3f)
+                                        hasRoutines -> AppColors.cardBgSubtle
+                                        else -> AppColors.cardBgSubtle
                                     }
                                 ),
                             contentAlignment = Alignment.Center
@@ -564,19 +613,19 @@ private fun WeeklyView(
                                     "${dayRoutines.sumOf { it.exercises.size }}",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) Color.White else Color.White.copy(alpha = 0.8f)
+                                    color = if (isSelected) AppColors.textOnAccent else AppColors.textPrimary
                                 )
                             } else {
                                 Text(
                                     "${day + 1}",
                                     fontSize = 11.sp,
-                                    color = Color.White.copy(alpha = 0.3f)
+                                    color = AppColors.textTertiary
                                 )
                             }
                         }
                         if (isToday) {
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("Hoy", fontSize = 9.sp, color = Color(0xFFA0F03C), fontWeight = FontWeight.Bold)
+                            Text("Hoy", fontSize = 9.sp, color = AppColors.accent, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -594,15 +643,15 @@ private fun WeeklyView(
                 ) {
                     Box(
                         modifier = Modifier.size(32.dp).clip(CircleShape)
-                            .background(Color(0xFFA0F03C).copy(alpha = 0.15f)),
+                            .background(AppColors.accentMuted),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("${selectedDay + 1}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFB8F56A))
+                        Text("${selectedDay + 1}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AppColors.accent)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(DAY_NAMES[selectedDay], fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(DAY_NAMES[selectedDay], fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("${dayRoutines.sumOf { it.exercises.size }} ejercicios", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                    Text("${dayRoutines.sumOf { it.exercises.size }} ejercicios", fontSize = 12.sp, color = AppColors.textSecondary)
                 }
             }
 
@@ -624,17 +673,17 @@ private fun WeeklyView(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF141414))
+                    colors = CardDefaults.cardColors(containerColor = AppColors.cardBgAlt)
                 ) {
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Icon(Icons.Default.Restaurant, contentDescription = null, tint = Color.White.copy(alpha = 0.3f), modifier = Modifier.size(40.dp))
+                        Icon(Icons.Default.Restaurant, contentDescription = null, tint = AppColors.textTertiary, modifier = Modifier.size(40.dp))
                         Spacer(modifier = Modifier.height(10.dp))
-                        Text("Día de descanso", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.7f))
+                        Text("Día de descanso", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppColors.textSecondary)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("No hay rutinas para ${DAY_NAMES[selectedDay]}", fontSize = 12.sp, color = Color.White.copy(alpha = 0.5f))
+                        Text("No hay rutinas para ${DAY_NAMES[selectedDay]}", fontSize = 12.sp, color = AppColors.textTertiary)
                     }
                 }
             }
@@ -651,13 +700,13 @@ private fun WeeklyView(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFFFB74D).copy(alpha = 0.15f)),
+                            .background(AppColors.accentMuted),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Schedule, contentDescription = null, tint = Color(0xFFFFB74D), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Schedule, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(16.dp))
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Sin día asignado", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Sin día asignado", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
                 }
             }
             items(unassigned) { routine ->
@@ -696,7 +745,7 @@ private fun ExerciseDetailSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF282828),
+        containerColor = AppColors.cardBg,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     ) {
         Column(
@@ -705,7 +754,7 @@ private fun ExerciseDetailSheet(
         ) {
             // GIF
             Box(
-                modifier = Modifier.size(200.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF141414)),
+                modifier = Modifier.size(200.dp).clip(RoundedCornerShape(16.dp)).background(AppColors.cardBgAlt),
                 contentAlignment = Alignment.Center
             ) {
                 if (gifUrl != null) {
@@ -723,11 +772,11 @@ private fun ExerciseDetailSheet(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.White.copy(alpha = 0.3f), modifier = Modifier.size(48.dp))
+                    Icon(Icons.Default.Add, contentDescription = null, tint = AppColors.textTertiary, modifier = Modifier.size(48.dp))
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Text(exercise.name, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text(exercise.name, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 InfoChip("${exercise.sets}", "Series")
@@ -743,8 +792,8 @@ private fun ExerciseDetailSheet(
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isCompleted) Color(0xFFA0F03C).copy(alpha = 0.2f) else Color(0xFFA0F03C).copy(alpha = 0.15f),
-                        contentColor = if (isCompleted) Color(0xFFA0F03C) else Color(0xFFB8F56A)
+                        containerColor = if (isCompleted) AppColors.accentMuted else AppColors.accent.copy(alpha = 0.12f),
+                        contentColor = AppColors.accent
                     )
                 ) {
                     Icon(
@@ -766,7 +815,7 @@ private fun ExerciseDetailSheet(
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFFFFB74D)
+                        contentColor = AppColors.warning
                     )
                 ) {
                     Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -779,8 +828,8 @@ private fun ExerciseDetailSheet(
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White.copy(alpha = 0.2f),
-                        contentColor = Color.White
+                        containerColor = AppColors.cardBgAlt,
+                        contentColor = AppColors.textPrimary
                     )
                 ) {
                     Text("Cerrar", fontWeight = FontWeight.Bold, fontSize = 14.sp)
@@ -792,9 +841,9 @@ private fun ExerciseDetailSheet(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Cambiar ejercicio", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.weight(1f))
+                    Text("Cambiar ejercicio", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary, modifier = Modifier.weight(1f))
                     TextButton(onClick = { showSubstitute = false }) {
-                        Text("Volver", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
+                        Text("Volver", color = AppColors.textSecondary, fontSize = 13.sp)
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -808,23 +857,23 @@ private fun ExerciseDetailSheet(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(18.dp)) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = AppColors.textSecondary, modifier = Modifier.size(18.dp)) },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        cursorColor = Color.White,
-                        focusedBorderColor = Color.White,
-                        unfocusedBorderColor = Color.White.copy(alpha = 0.3f)
+                        focusedTextColor = AppColors.textPrimary,
+                        unfocusedTextColor = AppColors.textPrimary,
+                        cursorColor = AppColors.accent,
+                        focusedBorderColor = AppColors.accent,
+                        unfocusedBorderColor = AppColors.border
                     )
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 if (isSearching) {
                     Box(modifier = Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = Color.White)
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = AppColors.accent)
                     }
                 } else if (searchResults.isEmpty()) {
                     Box(modifier = Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) {
-                        Text("Sin resultados. Intenta otra búsqueda.", fontSize = 13.sp, color = Color.White.copy(alpha = 0.5f))
+                        Text("Sin resultados. Intenta otra búsqueda.", fontSize = 13.sp, color = AppColors.textSecondary)
                     }
                 } else {
                     LazyColumn(
@@ -839,14 +888,14 @@ private fun ExerciseDetailSheet(
                                     onSubstitute(ds.id, ds.name)
                                 },
                                 shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF333333))
+                                colors = CardDefaults.cardColors(containerColor = AppColors.cardBgAlt)
                             ) {
                                 Row(
                                     modifier = Modifier.padding(10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Box(
-                                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF141414)),
+                                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)).background(AppColors.cardBgSubtle),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         if (dsGif != null) {
@@ -854,20 +903,20 @@ private fun ExerciseDetailSheet(
                                         } else if (dsImg != null) {
                                             AsyncImage(model = dsImg, contentDescription = ds.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                                         } else {
-                                            Icon(Icons.Default.Add, contentDescription = null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(16.dp))
+                                            Icon(Icons.Default.Add, contentDescription = null, tint = AppColors.textTertiary, modifier = Modifier.size(16.dp))
                                         }
                                     }
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text(ds.name, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(ds.name, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = AppColors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         Text(
                                             "${ds.target ?: ""} · ${ds.equipment ?: ""}",
                                             fontSize = 10.sp,
-                                            color = Color.White.copy(alpha = 0.5f),
+                                            color = AppColors.textSecondary,
                                             maxLines = 1
                                         )
                                     }
-                                    Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = Color(0xFFFFB74D), modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(18.dp))
                                 }
                             }
                         }
@@ -882,13 +931,13 @@ private fun ExerciseDetailSheet(
 private fun InfoChip(value: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            modifier = Modifier.size(56.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.1f)),
+            modifier = Modifier.size(56.dp).clip(CircleShape).background(AppColors.cardBgAlt),
             contentAlignment = Alignment.Center
         ) {
-            Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
         }
         Spacer(modifier = Modifier.height(4.dp))
-        Text(label, fontSize = 10.sp, color = Color.White.copy(alpha = 0.7f))
+        Text(label, fontSize = 10.sp, color = AppColors.textSecondary)
     }
 }
 
@@ -915,8 +964,8 @@ private fun MonthlyView(
     val completedCount = routines.sumOf { it.exercises.count { e -> e.id in completedExercises } }
     val overallProgress = if (totalExercises > 0) completedCount.toFloat() / totalExercises else 0f
 
-    // Map day_of_week (0-6) to routines
-    val byDow = routines.groupBy { it.day_of_week ?: 99 }
+    // Map day_of_week (1=Monday, 7=Sunday from backend) to calendar grid (0=Sunday, 6=Saturday)
+    val byDow = routines.groupBy { it.day_of_week?.let { d -> d % 7 } ?: 99 }
     val unassigned = byDow[99] ?: emptyList()
 
     // Calendar math
@@ -940,7 +989,8 @@ private fun MonthlyView(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2E))
+                colors = CardDefaults.cardColors(containerColor = AppColors.cardBg),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.border)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(
@@ -949,18 +999,18 @@ private fun MonthlyView(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            Text("${monthNames[currentMonth]} $currentYear", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            Text("${routines.size} rutinas · $totalExercises ejercicios", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                            Text("${monthNames[currentMonth]} $currentYear", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
+                            Text("${routines.size} rutinas · $totalExercises ejercicios", fontSize = 12.sp, color = AppColors.textSecondary)
                         }
                         Box(
-                            modifier = Modifier.size(56.dp).clip(CircleShape).background(Color(0xFFA0F03C).copy(alpha = 0.15f)),
+                            modifier = Modifier.size(56.dp).clip(CircleShape).background(AppColors.accentMuted),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 "${(overallProgress * 100).toInt()}%",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFA0F03C)
+                                color = AppColors.accent
                             )
                         }
                     }
@@ -968,8 +1018,8 @@ private fun MonthlyView(
                     LinearProgressIndicator(
                         progress = overallProgress,
                         modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
-                        color = Color(0xFFA0F03C),
-                        trackColor = Color.White.copy(alpha = 0.15f)
+                        color = AppColors.accent,
+                        trackColor = AppColors.cardBgAlt
                     )
                 }
             }
@@ -980,7 +1030,8 @@ private fun MonthlyView(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF282828))
+                colors = CardDefaults.cardColors(containerColor = AppColors.cardBg),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.border)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     // Day-of-week headers
@@ -990,7 +1041,7 @@ private fun MonthlyView(
                                 modifier = Modifier.weight(1f),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.5f))
+                                Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppColors.textSecondary)
                             }
                         }
                     }
@@ -1022,9 +1073,9 @@ private fun MonthlyView(
                                                 .clip(RoundedCornerShape(10.dp))
                                                 .background(
                                                     when {
-                                                        isToday -> Color(0xFFA0F03C).copy(alpha = 0.2f)
-                                                        isCompleted -> Color(0xFFA0F03C).copy(alpha = 0.08f)
-                                                        hasRoutines -> Color(0xFFA0F03C).copy(alpha = 0.1f)
+                                                        isToday -> AppColors.accent.copy(alpha = 0.2f)
+                                                        isCompleted -> AppColors.accent.copy(alpha = 0.08f)
+                                                        hasRoutines -> AppColors.accent.copy(alpha = 0.1f)
                                                         else -> Color.Transparent
                                                     }
                                                 )
@@ -1037,9 +1088,9 @@ private fun MonthlyView(
                                                 fontSize = 14.sp,
                                                 fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium,
                                                 color = when {
-                                                    isToday -> Color(0xFFA0F03C)
-                                                    hasRoutines -> Color.White
-                                                    else -> Color.White.copy(alpha = 0.4f)
+                                                    isToday -> AppColors.accent
+                                                    hasRoutines -> AppColors.textPrimary
+                                                    else -> AppColors.textTertiary
                                                 }
                                             )
                                             if (hasRoutines) {
@@ -1052,14 +1103,14 @@ private fun MonthlyView(
                                                                     .size(4.dp)
                                                                     .clip(CircleShape)
                                                                     .background(
-                                                                        if (isCompleted) Color(0xFFA0F03C)
-                                                                        else Color(0xFFB8F56A)
+                                                                        if (isCompleted) AppColors.accent
+                                                                        else AppColors.accentLight
                                                                     )
                                                             )
                                                         }
                                                     }
                                                     if (byDow[dow]!!.size > 3) {
-                                                        Text("·", fontSize = 8.sp, color = Color.White.copy(alpha = 0.5f))
+                                                        Text("·", fontSize = 8.sp, color = AppColors.textSecondary)
                                                     }
                                                 }
                                             }
@@ -1079,9 +1130,9 @@ private fun MonthlyView(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                LegendDot(Color(0xFFA0F03C), "Hoy")
-                LegendDot(Color(0xFFB8F56A), "Rutina")
-                LegendDot(Color(0xFFA0F03C).copy(alpha = 0.5f), "Completado")
+                LegendDot(AppColors.accent, "Hoy")
+                LegendDot(AppColors.accentLight, "Rutina")
+                LegendDot(AppColors.accent.copy(alpha = 0.5f), "Completado")
             }
         }
 
@@ -1097,14 +1148,14 @@ private fun MonthlyView(
                         Box(
                             modifier = Modifier.size(width = 4.dp, height = 20.dp)
                                 .clip(RoundedCornerShape(2.dp))
-                                .background(Color(0xFFA0F03C))
+                                .background(AppColors.accent)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            if (dow in 0..6) DAY_NAMES[dow] else "Sin día",
+                            if (dow in 0..6) DAY_NAMES[(dow + 6) % 7] else "Sin día",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = AppColors.textPrimary
                         )
                     }
                 }
@@ -1134,10 +1185,10 @@ private fun MonthlyView(
                     Box(
                         modifier = Modifier.size(width = 4.dp, height = 20.dp)
                             .clip(RoundedCornerShape(2.dp))
-                            .background(Color(0xFFFFB74D))
+                            .background(AppColors.warning)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Sin día asignado", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Sin día asignado", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
                 }
             }
             items(unassigned) { routine ->
@@ -1162,15 +1213,15 @@ private fun LegendDot(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
         Spacer(modifier = Modifier.width(4.dp))
-        Text(label, fontSize = 11.sp, color = Color.White.copy(alpha = 0.6f))
+        Text(label, fontSize = 11.sp, color = AppColors.textSecondary)
     }
 }
 
 @Composable
 private fun MonthlyStat(value: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
-        Text(label, fontSize = 11.sp, color = Color.White.copy(alpha = 0.6f))
+        Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
+        Text(label, fontSize = 11.sp, color = AppColors.textSecondary)
     }
 }
 
@@ -1182,8 +1233,8 @@ private fun AddRoutineDialog(
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF282828),
-        title = { Text("Nueva Rutina", color = Color.White) },
+        containerColor = AppColors.cardBg,
+        title = { Text("Nueva Rutina", color = AppColors.textPrimary) },
         text = {
             OutlinedTextField(
                 value = name,
@@ -1191,21 +1242,21 @@ private fun AddRoutineDialog(
                 label = { Text("Nombre") },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = Color.White,
-                    focusedBorderColor = Color.White,
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f)
+                    focusedTextColor = AppColors.textPrimary,
+                    unfocusedTextColor = AppColors.textPrimary,
+                    cursorColor = AppColors.accent,
+                    focusedBorderColor = AppColors.accent,
+                    unfocusedBorderColor = AppColors.border
                 )
             )
         },
         confirmButton = {
             TextButton(onClick = { if (name.isNotBlank()) onCreate(name) }) {
-                Text("Crear", color = Color.White)
+                Text("Crear", color = AppColors.accent)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancelar", color = Color.White.copy(alpha = 0.7f)) }
+            TextButton(onClick = onDismiss) { Text("Cancelar", color = AppColors.textSecondary) }
         }
     )
 }
@@ -1234,9 +1285,9 @@ private fun AIPlanDialog(
 
     ModalBottomSheet(
         onDismissRequest = { if (!isGenerating) onDismiss() },
-        containerColor = Color(0xFF1F1F1F),
+        containerColor = AppColors.cardBg,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.3f)) }
+        dragHandle = { BottomSheetDefaults.DragHandle(color = AppColors.border) }
     ) {
         Column(
             modifier = Modifier
@@ -1249,21 +1300,21 @@ private fun AIPlanDialog(
             // Header
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier.size(40.dp).clip(CircleShape).background(Color(0xFFA0F03C).copy(alpha = 0.15f)),
+                    modifier = Modifier.size(40.dp).clip(CircleShape).background(AppColors.accentMuted),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color(0xFFB8F56A), modifier = Modifier.size(22.dp))
+                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(22.dp))
                 }
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
-                    Text("Plan con IA", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    Text("Personaliza tu rutina semanal", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                    Text("Plan con IA", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
+                    Text("Personaliza tu rutina semanal", fontSize = 12.sp, color = AppColors.textSecondary)
                 }
             }
 
             // Days selector
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Días por semana", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.9f))
+                Text("Días por semana", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AppColors.textPrimary)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(3, 4, 5, 6).forEach { days ->
                         FilterChip(
@@ -1271,8 +1322,8 @@ private fun AIPlanDialog(
                             onClick = { daysPerWeek = days },
                             label = { Text("$days días", fontSize = 12.sp) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color.White,
-                                selectedLabelColor = Color(0xFF141414)
+                                selectedContainerColor = AppColors.accent,
+                                selectedLabelColor = AppColors.textOnAccent
                             )
                         )
                     }
@@ -1280,48 +1331,116 @@ private fun AIPlanDialog(
             }
 
             // Equipment selector
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Equipo disponible", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.9f))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("all" to "Todo", "body weight" to "Peso corporal", "dumbbell" to "Mancuernas", "barbell" to "Barra").forEach { (value, label) ->
-                        FilterChip(
-                            selected = equipment == value,
-                            onClick = { equipment = value },
-                            label = { Text(label, fontSize = 12.sp) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color.White,
-                                selectedLabelColor = Color(0xFF141414)
-                            )
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Equipo disponible", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AppColors.textPrimary)
+                val equipmentOptions = listOf("all" to "Todo", "body weight" to "Peso corporal", "dumbbell" to "Mancuernas", "barbell" to "Barra", "kettlebell" to "Kettlebell", "machine" to "Máquina", "cable" to "Cable")
+                var equipmentExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = equipmentExpanded,
+                    onExpandedChange = { equipmentExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = equipmentOptions.find { it.first == equipment }?.second ?: "Todo",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Equipo", fontSize = 13.sp) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = equipmentExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = AppColors.textPrimary,
+                            unfocusedTextColor = AppColors.textPrimary,
+                            cursorColor = AppColors.accent,
+                            focusedBorderColor = AppColors.accent,
+                            unfocusedBorderColor = AppColors.border,
+                            focusedLabelColor = AppColors.accent,
+                            unfocusedLabelColor = AppColors.textSecondary
                         )
+                    )
+                    ExposedDropdownMenu(
+                        expanded = equipmentExpanded,
+                        onDismissRequest = { equipmentExpanded = false },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        equipmentOptions.forEach { (value, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label, fontSize = 14.sp, color = if (equipment == value) AppColors.accent else AppColors.textPrimary) },
+                                onClick = { equipment = value; equipmentExpanded = false }
+                            )
+                        }
                     }
                 }
             }
 
             // Muscle group selector
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Grupos musculares", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.9f))
-                Text("Selecciona uno o varios. Deja vacío para cuerpo completo.", fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    muscleGroupOptions.forEach { (value, label) ->
-                        val isSelected = selectedMuscleGroups.contains(value)
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = {
-                                if (value == "full body") {
-                                    selectedMuscleGroups.clear()
-                                } else {
-                                    selectedMuscleGroups.remove("full body")
-                                    if (isSelected) selectedMuscleGroups.remove(value) else selectedMuscleGroups.add(value)
-                                }
-                            },
-                            label = { Text(label, fontSize = 12.sp) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFA0F03C),
-                                selectedLabelColor = Color.White,
-                                containerColor = Color(0xFF2D2D2D),
-                                labelColor = Color.White.copy(alpha = 0.7f)
-                            )
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Grupos musculares", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AppColors.textPrimary)
+                Text("Selecciona uno o varios. Deja vacío para cuerpo completo.", fontSize = 11.sp, color = AppColors.textSecondary)
+                val muscleGroupOptions = listOf(
+                    "full body" to "Cuerpo Completo",
+                    "chest" to "Pecho",
+                    "back" to "Espalda",
+                    "upper legs" to "Piernas",
+                    "shoulders" to "Hombros",
+                    "upper arms" to "Brazos",
+                    "lower legs" to "Pantorrillas",
+                    "waist" to "Core"
+                )
+                var muscleExpanded by remember { mutableStateOf(false) }
+                val selectedLabels = selectedMuscleGroups.map { v -> muscleGroupOptions.find { it.first == v }?.second ?: v }
+                val displayText = if (selectedMuscleGroups.isEmpty()) "Cuerpo completo" else selectedLabels.joinToString(", ")
+                ExposedDropdownMenuBox(
+                    expanded = muscleExpanded,
+                    onExpandedChange = { muscleExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = displayText,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Músculos", fontSize = 13.sp) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = muscleExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = AppColors.textPrimary,
+                            unfocusedTextColor = AppColors.textPrimary,
+                            cursorColor = AppColors.accent,
+                            focusedBorderColor = AppColors.accent,
+                            unfocusedBorderColor = AppColors.border,
+                            focusedLabelColor = AppColors.accent,
+                            unfocusedLabelColor = AppColors.textSecondary
                         )
+                    )
+                    ExposedDropdownMenu(
+                        expanded = muscleExpanded,
+                        onDismissRequest = { muscleExpanded = false },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        muscleGroupOptions.forEach { (value, label) ->
+                            val isSelected = selectedMuscleGroups.contains(value)
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = isSelected,
+                                            onCheckedChange = null,
+                                            colors = CheckboxDefaults.colors(checkedColor = AppColors.accent),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(label, fontSize = 14.sp, color = AppColors.textPrimary)
+                                    }
+                                },
+                                onClick = {
+                                    if (value == "full body") {
+                                        selectedMuscleGroups.clear()
+                                    } else {
+                                        selectedMuscleGroups.remove("full body")
+                                        if (isSelected) selectedMuscleGroups.remove(value) else selectedMuscleGroups.add(value)
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -1330,19 +1449,19 @@ private fun AIPlanDialog(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f))
+                colors = CardDefaults.cardColors(containerColor = AppColors.cardBgAlt)
             ) {
                 Row(
                     modifier = Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Info, contentDescription = null, tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Info, contentDescription = null, tint = AppColors.textSecondary, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         if (selectedMuscleGroups.isEmpty()) "La IA creará rutinas divididas por día según tu perfil"
                         else "La IA enfocará los ejercicios en: ${selectedMuscleGroups.joinToString(", ") { v -> muscleGroupOptions.find { it.first == v }?.second ?: v }}",
                         fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.6f)
+                        color = AppColors.textSecondary
                     )
                 }
             }
@@ -1354,9 +1473,9 @@ private fun AIPlanDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color.White)
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = AppColors.accent)
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text("Generando tu plan...", fontSize = 14.sp, color = Color.White.copy(alpha = 0.8f))
+                    Text("Generando tu plan...", fontSize = 14.sp, color = AppColors.textSecondary)
                 }
             } else {
                 Row(
@@ -1367,7 +1486,7 @@ private fun AIPlanDialog(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f).height(50.dp),
                         shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White.copy(alpha = 0.7f))
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.textSecondary)
                     ) {
                         Text("Cancelar")
                     }
@@ -1376,13 +1495,246 @@ private fun AIPlanDialog(
                         modifier = Modifier.weight(1f).height(50.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFA0F03C),
-                            contentColor = Color.White
+                            containerColor = AppColors.accent,
+                            contentColor = AppColors.textOnAccent
                         )
                     ) {
                         Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Generar", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun ExerciseExplorerDialog(
+    onDismiss: () -> Unit,
+    searchResults: List<ExerciseDataset>,
+    isSearching: Boolean,
+    onSearch: (String?, String?) -> Unit,
+    onAddExercise: (String?, String, Int, String, Int) -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedEquipment by remember { mutableStateOf("all") }
+    var selectedExercise by remember { mutableStateOf<ExerciseDataset?>(null) }
+    var sets by remember { mutableIntStateOf(3) }
+    var reps by remember { mutableStateOf("8-12") }
+    var restSeconds by remember { mutableIntStateOf(90) }
+
+    val equipmentOptions = listOf(
+        "all" to "Todo",
+        "body weight" to "Peso corporal",
+        "dumbbell" to "Mancuernas",
+        "barbell" to "Barra",
+        "kettlebell" to "Kettlebell",
+        "machine" to "Máquina",
+        "cable" to "Cable"
+    )
+
+    LaunchedEffect(Unit) {
+        onSearch(null, null)
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = AppColors.cardBg,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = AppColors.border) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier.size(36.dp).clip(CircleShape).background(AppColors.accentMuted),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Search, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(20.dp))
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Text("Explorar ejercicios", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
+            }
+
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = {
+                    searchQuery = it
+                    onSearch(it.ifBlank { null }, selectedEquipment.takeIf { it != "all" })
+                },
+                placeholder = { Text("Buscar ejercicio...", fontSize = 14.sp) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = AppColors.textSecondary, modifier = Modifier.size(20.dp)) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = AppColors.textPrimary,
+                    unfocusedTextColor = AppColors.textPrimary,
+                    cursorColor = AppColors.accent,
+                    focusedBorderColor = AppColors.accent,
+                    unfocusedBorderColor = AppColors.border
+                )
+            )
+
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                equipmentOptions.forEach { (value, label) ->
+                    FilterChip(
+                        selected = selectedEquipment == value,
+                        onClick = {
+                            selectedEquipment = value
+                            onSearch(searchQuery.ifBlank { null }, value.takeIf { it != "all" })
+                        },
+                        label = { Text(label, fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = AppColors.accent,
+                            selectedLabelColor = AppColors.textOnAccent,
+                            containerColor = AppColors.cardBgAlt,
+                            labelColor = AppColors.textSecondary
+                        )
+                    )
+                }
+            }
+
+            if (isSearching) {
+                Box(modifier = Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 2.dp, color = AppColors.accent)
+                }
+            } else if (searchResults.isEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
+                    Text("Sin resultados. Intenta otra búsqueda.", fontSize = 13.sp, color = AppColors.textSecondary)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 400.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(searchResults.take(30)) { ds ->
+                        val dsGif = assetUrl(ds.gif_url)
+                        val dsImg = assetUrl(ds.image)
+                        val isSelected = selectedExercise?.id == ds.id
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                selectedExercise = if (isSelected) null else ds
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) AppColors.accent.copy(alpha = 0.06f) else AppColors.cardBgAlt
+                            ),
+                            border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, AppColors.accent) else null
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(52.dp).clip(RoundedCornerShape(10.dp)).background(AppColors.cardBgSubtle),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (dsGif != null) {
+                                        AsyncImage(model = dsGif, contentDescription = ds.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                                    } else if (dsImg != null) {
+                                        AsyncImage(model = dsImg, contentDescription = ds.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                                    } else {
+                                        Icon(Icons.Default.Add, contentDescription = null, tint = AppColors.textTertiary, modifier = Modifier.size(20.dp))
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(ds.name, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AppColors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    Text(
+                                        "${ds.target_es ?: ds.target ?: ""} · ${ds.equipment_es ?: ds.equipment ?: ""}",
+                                        fontSize = 11.sp,
+                                        color = AppColors.textSecondary,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            selectedExercise?.let { ds ->
+                Spacer(modifier = Modifier.height(4.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppColors.cardBgAlt)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Configurar: ${ds.name}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Series", fontSize = 12.sp, color = AppColors.textSecondary)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(onClick = { if (sets > 1) sets-- }, modifier = Modifier.size(32.dp)) {
+                                        Icon(Icons.Default.Remove, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(18.dp))
+                                    }
+                                    Text("$sets", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+                                    IconButton(onClick = { if (sets < 10) sets++ }, modifier = Modifier.size(32.dp)) {
+                                        Icon(Icons.Default.Add, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Reps", fontSize = 12.sp, color = AppColors.textSecondary)
+                                OutlinedTextField(
+                                    value = reps,
+                                    onValueChange = { reps = it },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp),
+                                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary, textAlign = TextAlign.Center),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = AppColors.accent,
+                                        unfocusedBorderColor = AppColors.border
+                                    )
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Descanso (s)", fontSize = 12.sp, color = AppColors.textSecondary)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(onClick = { if (restSeconds > 15) restSeconds -= 15 }, modifier = Modifier.size(32.dp)) {
+                                        Icon(Icons.Default.Remove, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(18.dp))
+                                    }
+                                    Text("$restSeconds", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+                                    IconButton(onClick = { if (restSeconds < 300) restSeconds += 15 }, modifier = Modifier.size(32.dp)) {
+                                        Icon(Icons.Default.Add, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                onAddExercise(ds.id, ds.name, sets, reps, restSeconds)
+                                selectedExercise = null
+                                sets = 3
+                                reps = "8-12"
+                                restSeconds = 90
+                            },
+                            modifier = Modifier.fillMaxWidth().height(46.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AppColors.accent,
+                                contentColor = AppColors.textOnAccent
+                            )
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Agregar a la rutina", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
                     }
                 }
             }

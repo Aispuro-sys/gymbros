@@ -127,11 +127,42 @@ class Repository(private val api: ApiService) {
         api.createTeamPost(teamId, TeamPostRequest(content)).post
     suspend fun leaveTeam(teamId: String) = api.leaveTeam(teamId)
 
-    // Progress Photos
+    // Progress Photos / Body Logs
     suspend fun getProgressPhotos(): List<ProgressPhoto> = api.getProgressPhotos().photos
-    suspend fun uploadProgressPhoto(photoUrl: String, weight: Float? = null): ProgressPhoto =
-        api.uploadProgressPhoto(UploadProgressPhotoRequest(photoUrl, weight)).photo
+    suspend fun getTrackingStats(): TrackingStats {
+        val r = api.getTrackingStats()
+        return TrackingStats(
+            streak = r.streak,
+            longest_streak = r.longest_streak,
+            workouts_this_week = r.workouts_this_week,
+            total_workout_days = r.total_workout_days,
+            weekly_counts = r.weekly_counts,
+            meals_this_week = r.meals_this_week,
+            total_meals = r.total_meals,
+            rest_days = r.rest_days
+        )
+    }
+    suspend fun uploadProgressPhoto(
+        photoUrl: String? = null, weight: Float? = null,
+        waistCm: Float? = null, chestCm: Float? = null, hipCm: Float? = null,
+        armCm: Float? = null, legCm: Float? = null, bodyFatPct: Float? = null,
+        note: String? = null
+    ): ProgressPhoto = api.uploadProgressPhoto(
+        UploadProgressPhotoRequest(photoUrl, weight, waistCm, chestCm, hipCm, armCm, legCm, bodyFatPct, note)
+    ).photo
     suspend fun deleteProgressPhoto(id: String) = api.deleteProgressPhoto(id)
-    suspend fun updateProgressPhoto(id: String, weight: Float?): ProgressPhoto =
-        api.updateProgressPhoto(id, UpdateProgressPhotoRequest(weight)).photo
+    suspend fun updateProgressPhoto(
+        id: String, weight: Float? = null,
+        waistCm: Float? = null, chestCm: Float? = null, hipCm: Float? = null,
+        armCm: Float? = null, legCm: Float? = null, bodyFatPct: Float? = null,
+        note: String? = null
+    ): ProgressPhoto = api.updateProgressPhoto(
+        id, UpdateProgressPhotoRequest(weight, waistCm, chestCm, hipCm, armCm, legCm, bodyFatPct, note)
+    ).photo
+
+    // Workout Logs
+    suspend fun getWorkoutLogs(): List<WorkoutLog> = api.getWorkoutLogs().logs
+    suspend fun createWorkoutLog(type: String, durationMin: Int? = null, intensity: String? = null, notes: String? = null, date: String? = null): WorkoutLog =
+        api.createWorkoutLog(WorkoutLogRequest(type, durationMin, intensity, notes, date)).log
+    suspend fun deleteWorkoutLog(id: String) = api.deleteWorkoutLog(id)
 }

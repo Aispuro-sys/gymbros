@@ -34,6 +34,7 @@ model User {
   shared_routines  TeamRoutine[]
   team_posts       TeamPost[]
   exercise_logs    ExerciseLog[]
+  workout_logs     WorkoutLog[]
   meals            Meal[]
   community_posts  CommunityPost[]
   community_replies CommunityReply[]
@@ -126,11 +127,35 @@ model ExerciseLog {
   @@map("exercise_logs")
 }
 
+model WorkoutLog {
+  id          String   @id @default(uuid())
+  user_id     String
+  date        DateTime @default(now())
+  type        String   @default("WORKOUT") // WORKOUT, REST, CARDIO
+  routine_id  String?
+  duration_min Int?
+  intensity   String?  // LOW, MEDIUM, HIGH
+  notes       String?
+  created_at  DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, date])
+  @@map("workout_logs")
+}
+
 model ProgressPhoto {
   id            String   @id @default(uuid())
   user_id       String
-  photo_url     String
+  photo_url     String?
   weight_logged Float?
+  waist_cm      Float?
+  chest_cm      Float?
+  hip_cm        Float?
+  arm_cm        Float?
+  leg_cm        Float?
+  body_fat_pct  Float?
+  note          String?
   date          DateTime @default(now())
   created_at    DateTime @default(now())
 

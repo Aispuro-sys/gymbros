@@ -138,10 +138,10 @@ function timeLabel(t) {
   return { MORNING: 'Mañana', PRE_WORKOUT: 'Pre-entreno', NIGHT: 'Noche' }[t] || t;
 }
 function emptyState(text) {
-  return `<div class="empty-state"><div class="empty-state-icon">—</div><div class="empty-state-text">${text}</div></div>`;
+  return `<div class="empty-state"><div class="empty-state-icon">&#9881;</div><div class="empty-state-text">${text}</div></div>`;
 }
 function loadingHtml() {
-  return `<div class="loading"><div class="loading-spinner"></div><div>Generando...</div></div>`;
+  return `<div class="loading"><div class="loading-spinner"></div><div>Procesando...</div></div>`;
 }
 
 function navigateTo(page) {

@@ -3,8 +3,15 @@ package com.talos.forge.ui.screens
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,7 +24,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -101,73 +110,101 @@ fun CommunityScreen(viewModel: CommunityViewModel) {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        error?.let { ErrorText(it) }
-
-        // Search bar
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = {
-                searchQuery = it
-                showSearch = it.length >= 2
-                if (showSearch) viewModel.searchUsers(it)
-            },
-            label = { Text("Buscar usuarios...", color = Color.White.copy(alpha = 0.5f)) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.5f)) },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                cursorColor = Color.White,
-                focusedBorderColor = Color.White,
-                unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-                focusedContainerColor = Color(0xFF282828),
-                unfocusedContainerColor = Color(0xFF282828)
-            )
-        )
-
-        // Search results dropdown
-        if (showSearch && searchResults.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF282828))
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text("Comunidad", fontSize = 24.sp, fontWeight = FontWeight.Black, color = AppColors.textPrimary)
+                Text("Comparte tu progreso", fontSize = 12.sp, color = AppColors.textSecondary)
+            }
+            IconButton(
+                onClick = { showSearch = !showSearch },
+                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(AppColors.accentMuted)
             ) {
-                Column {
-                    searchResults.take(5).forEach { user ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.loadUserProfile(user.id)
-                                    showSearch = false
-                                    searchQuery = ""
+                Icon(
+                    if (showSearch) Icons.Default.Close else Icons.Default.Search,
+                    contentDescription = "Search",
+                    tint = AppColors.accent,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        // Search bar (collapsible)
+        AnimatedVisibility(visible = showSearch) {
+            Column {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = {
+                        searchQuery = it
+                        if (it.length >= 2) viewModel.searchUsers(it)
+                    },
+                    label = { Text("Buscar usuarios...", color = AppColors.textSecondary) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = AppColors.textSecondary) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = AppColors.textPrimary,
+                        unfocusedTextColor = AppColors.textPrimary,
+                        cursorColor = AppColors.accent,
+                        focusedBorderColor = AppColors.accent,
+                        unfocusedBorderColor = AppColors.border,
+                        focusedContainerColor = AppColors.cardBgAlt,
+                        unfocusedContainerColor = AppColors.cardBgAlt
+                    )
+                )
+
+                // Search results dropdown
+                if (searchResults.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = AppColors.cardBgAlt)
+                    ) {
+                        Column {
+                            searchResults.take(5).forEach { user ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.loadUserProfile(user.id)
+                                            showSearch = false
+                                            searchQuery = ""
+                                        }
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    UserAvatar(user.username, user.profile_photo, 32.dp)
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(user.username, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
+                                        user.bio?.let { Text(it, fontSize = 11.sp, color = AppColors.textSecondary, maxLines = 1) }
+                                    }
                                 }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            UserAvatar(user.username, user.profile_photo, 32.dp)
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(user.username, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                user.bio?.let { Text(it, fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f), maxLines = 1) }
                             }
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        error?.let { ErrorText(it) }
+
+        Spacer(modifier = Modifier.height(4.dp))
 
         // ===== Inline composer (no modal) =====
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF141414))
+            colors = CardDefaults.cardColors(containerColor = AppColors.cardBg),
+            border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.border)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 // Media preview
@@ -182,12 +219,12 @@ fun CommunityScreen(viewModel: CommunityViewModel) {
                             )
                         } else {
                             Box(
-                                modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF333333)),
+                                modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(12.dp)).background(AppColors.cardBgAlt),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Default.PlayCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(40.dp))
-                                    Text("Video seleccionado", fontSize = 12.sp, color = Color.White.copy(alpha = 0.7f))
+                                    Icon(Icons.Default.PlayCircle, contentDescription = null, tint = AppColors.textPrimary, modifier = Modifier.size(40.dp))
+                                    Text("Video seleccionado", fontSize = 12.sp, color = AppColors.textSecondary)
                                 }
                             }
                         }
@@ -196,7 +233,7 @@ fun CommunityScreen(viewModel: CommunityViewModel) {
                             onClick = { selectedMediaUri = null; selectedMediaType = "TEXT" },
                             modifier = Modifier.align(Alignment.TopEnd)
                         ) {
-                            Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Close, contentDescription = "Remove", tint = AppColors.textPrimary, modifier = Modifier.size(20.dp))
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -205,18 +242,18 @@ fun CommunityScreen(viewModel: CommunityViewModel) {
                 OutlinedTextField(
                     value = newPostContent,
                     onValueChange = { newPostContent = it },
-                    label = { Text("¿Qué estás logrando hoy?", color = Color.White.copy(alpha = 0.5f)) },
+                    label = { Text("¿Qué estás logrando hoy?", color = AppColors.textSecondary) },
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 4,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        cursorColor = Color.White,
-                        focusedBorderColor = Color.White.copy(alpha = 0.2f),
+                        focusedTextColor = AppColors.textPrimary,
+                        unfocusedTextColor = AppColors.textPrimary,
+                        cursorColor = AppColors.accent,
+                        focusedBorderColor = AppColors.border,
                         unfocusedBorderColor = Color.Transparent,
-                        focusedContainerColor = Color(0xFF282828),
-                        unfocusedContainerColor = Color(0xFF282828)
+                        focusedContainerColor = AppColors.cardBgAlt,
+                        unfocusedContainerColor = AppColors.cardBgAlt
                     )
                 )
 
@@ -230,11 +267,11 @@ fun CommunityScreen(viewModel: CommunityViewModel) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         // Photo button
                         IconButton(onClick = { imagePicker.launch("image/*") }, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.PhotoLibrary, contentDescription = "Photo", tint = Color(0xFFA0F03C), modifier = Modifier.size(22.dp))
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = "Photo", tint = AppColors.accent, modifier = Modifier.size(22.dp))
                         }
                         // Video button
                         IconButton(onClick = { videoPicker.launch("video/*") }, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.VideoLibrary, contentDescription = "Video", tint = Color(0xFFA0F03C), modifier = Modifier.size(22.dp))
+                            Icon(Icons.Default.VideoLibrary, contentDescription = "Video", tint = AppColors.accent, modifier = Modifier.size(22.dp))
                         }
                     }
 
@@ -249,12 +286,12 @@ fun CommunityScreen(viewModel: CommunityViewModel) {
                             }
                         },
                         shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFA0F03C)),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.accent),
                         enabled = newPostContent.isNotBlank() || selectedMediaUri != null
                     ) {
-                        Icon(Icons.Default.Send, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Send, contentDescription = null, tint = AppColors.textOnAccent, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Publicar", color = Color.White, fontSize = 13.sp)
+                        Text("Publicar", color = AppColors.textOnAccent, fontSize = 13.sp)
                     }
                 }
             }
@@ -352,152 +389,235 @@ private fun PostCard(
 ) {
     val reactionEmojis = listOf("🔥", "💪", "❤️", "👏", "🚀")
     var showReactions by remember { mutableStateOf(false) }
+    var showComments by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
+    var liked by remember { mutableStateOf(false) }
+
+    val totalReactions = post.reactions.size
+    val topReactions = post.reactions.groupBy { it.emoji }.entries.sortedByDescending { it.value.size }.take(3)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF282828)),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = AppColors.cardBg),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // User header
+        Column {
+            // ===== Header: avatar + username + time + menu =====
             Row(
-                modifier = Modifier.fillMaxWidth().clickable { onViewProfile() },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                UserAvatar(post.user?.username ?: "U", post.user?.profile_photo, 40.dp)
+                UserAvatar(post.user?.username ?: "U", post.user?.profile_photo, 36.dp)
                 Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.weight(1f).clickable { onViewProfile() }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(post.user?.username ?: "Usuario", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(post.user?.username ?: "Usuario", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
                         post.user?.role?.let { role ->
                             if (role == "ADMIN" || role == "MODERATOR") {
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Box(
                                     modifier = Modifier.clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0xFFA0F03C).copy(alpha = 0.2f))
+                                        .background(AppColors.accentMuted)
                                         .padding(horizontal = 4.dp, vertical = 1.dp)
                                 ) {
-                                    Text(if (role == "ADMIN") "Admin" else "Mod", fontSize = 9.sp, color = Color(0xFFB8F56A))
+                                    Text(if (role == "ADMIN") "Admin" else "Mod", fontSize = 9.sp, color = AppColors.accent)
                                 }
                             }
                         }
                     }
-                    Text(formatTimeAgo(post.created_at), fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f))
+                    Text(formatTimeAgo(post.created_at), fontSize = 11.sp, color = AppColors.textSecondary)
                 }
-                IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.MoreHoriz, contentDescription = "Delete", tint = Color.White.copy(alpha = 0.3f), modifier = Modifier.size(18.dp))
-                }
-            }
-
-            // Content
-            if (post.content.isNotBlank()) {
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(post.content, fontSize = 14.sp, color = Color.White.copy(alpha = 0.95f))
-            }
-
-            // Media (photo/video)
-            post.media_url?.let { url ->
-                if (post.media_type == "IMAGE" || post.media_type == "PHOTO") {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    AsyncImage(
-                        model = url,
-                        contentDescription = "Post media",
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp).clip(RoundedCornerShape(14.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                }
-            }
-
-            // Reactions bar
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Existing reactions
-                val groupedReactions = post.reactions.groupBy { it.emoji }
-                groupedReactions.forEach { (emoji, reacts) ->
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color.White.copy(alpha = 0.08f))
-                            .clickable { onReact(emoji) }
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(emoji, fontSize = 14.sp)
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text("${reacts.size}", fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
-                    }
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                // Add reaction button
                 Box {
-                    IconButton(onClick = { showReactions = !showReactions }, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.FavoriteBorder, contentDescription = "React", tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(18.dp))
+                    IconButton(onClick = { showMenu = !showMenu }, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.MoreHoriz, contentDescription = "Options", tint = AppColors.textTertiary, modifier = Modifier.size(20.dp))
                     }
                     DropdownMenu(
-                        expanded = showReactions,
-                        onDismissRequest = { showReactions = false }
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
                     ) {
-                        Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            reactionEmojis.forEach { emoji ->
-                                Text(
-                                    emoji,
-                                    fontSize = 24.sp,
-                                    modifier = Modifier.clickable {
-                                        onReact(emoji)
-                                        showReactions = false
-                                    }.padding(4.dp)
+                        DropdownMenuItem(
+                            text = { Text("Ver perfil", fontSize = 13.sp, color = AppColors.textPrimary) },
+                            onClick = { showMenu = false; onViewProfile() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Eliminar", fontSize = 13.sp, color = AppColors.danger) },
+                            onClick = { showMenu = false; onDelete() }
+                        )
+                    }
+                }
+            }
+
+            // ===== Media full-width (Instagram style) =====
+            post.media_url?.let { url ->
+                if (post.media_type == "IMAGE" || post.media_type == "PHOTO") {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AsyncImage(
+                            model = url,
+                            contentDescription = "Post media",
+                            modifier = Modifier.fillMaxWidth().aspectRatio(1f).pointerInput(Unit) {
+                                detectTapGestures(
+                                    onDoubleTap = { onReact("❤️") }
                                 )
+                            },
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
+            }
+
+            // ===== Action bar (Instagram style) =====
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Like / reactions button
+                Box {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { showReactions = !showReactions },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                if (liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = "Like",
+                                tint = if (liked) AppColors.danger else AppColors.textPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        // Reaction emojis quick bar
+                        AnimatedVisibility(
+                            visible = showReactions,
+                            enter = scaleIn() + fadeIn(),
+                            exit = scaleOut() + fadeOut()
+                        ) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                reactionEmojis.forEach { emoji ->
+                                    Text(
+                                        emoji,
+                                        fontSize = 20.sp,
+                                        modifier = Modifier.clickable {
+                                            onReact(emoji)
+                                            liked = true
+                                            showReactions = false
+                                        }.padding(2.dp)
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
-                // Reply button
+                // Comment button
+                IconButton(
+                    onClick = { showComments = !showComments; if (!showComments) onReply() },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(Icons.Default.ChatBubbleOutline, contentDescription = "Comment", tint = AppColors.textPrimary, modifier = Modifier.size(22.dp))
+                }
+                if (post.replies.isNotEmpty()) {
+                    Text("${post.replies.size}", fontSize = 12.sp, color = AppColors.textSecondary)
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Share button (visual only)
+                IconButton(onClick = { /* share intent */ }, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Send, contentDescription = "Share", tint = AppColors.textPrimary, modifier = Modifier.size(20.dp))
+                }
+            }
+
+            // ===== Likes count =====
+            if (totalReactions > 0) {
                 Row(
-                    modifier = Modifier.clickable { onReply() }.padding(horizontal = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.ChatBubbleOutline, contentDescription = "Reply", tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(18.dp))
-                    if (post.replies.isNotEmpty()) {
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text("${post.replies.size}", fontSize = 12.sp, color = Color.White.copy(alpha = 0.5f))
+                    // Show top reaction emojis
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        topReactions.forEach { (emoji, _) ->
+                            Text(emoji, fontSize = 12.sp)
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        if (totalReactions == 1) "1 reacción" else "$totalReactions reacciones",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.textPrimary
+                    )
+                }
+            }
+
+            // ===== Caption =====
+            if (post.content.isNotBlank()) {
+                Text(
+                    post.content,
+                    fontSize = 13.sp,
+                    color = AppColors.textPrimary,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // ===== Comments preview (first 2) =====
+            if (post.replies.isNotEmpty() && !showComments) {
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+                    Text(
+                        "Ver los ${post.replies.size} comentarios",
+                        fontSize = 12.sp,
+                        color = AppColors.textSecondary,
+                        modifier = Modifier.clickable { showComments = true; onReply() }.padding(vertical = 4.dp)
+                    )
+                    post.replies.take(2).forEach { reply ->
+                        Row(modifier = Modifier.padding(vertical = 2.dp)) {
+                            Text(
+                                "${reply.user?.username ?: "Usuario"} ",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppColors.textPrimary
+                            )
+                            Text(reply.content, fontSize = 12.sp, color = AppColors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                 }
             }
 
-            // Replies
-            if (post.replies.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(10.dp))
-                post.replies.forEach { reply ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        UserAvatar(reply.user?.username ?: "U", reply.user?.profile_photo, 24.dp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column {
-                            Text(
-                                "${reply.user?.username ?: "Usuario"}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Text(reply.content, fontSize = 13.sp, color = Color.White.copy(alpha = 0.8f))
-                            reply.media_url?.let { url ->
-                                Spacer(modifier = Modifier.height(4.dp))
-                                AsyncImage(
-                                    model = url,
-                                    contentDescription = "Reply media",
-                                    modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp).clip(RoundedCornerShape(10.dp)),
-                                    contentScale = ContentScale.Crop
-                                )
+            // ===== Full comments section =====
+            if (showComments && post.replies.isNotEmpty()) {
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
+                    post.replies.forEach { reply ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            UserAvatar(reply.user?.username ?: "U", reply.user?.profile_photo, 24.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        reply.user?.username ?: "Usuario",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AppColors.textPrimary
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(formatTimeAgo(reply.created_at), fontSize = 10.sp, color = AppColors.textTertiary)
+                                }
+                                Text(reply.content, fontSize = 13.sp, color = AppColors.textPrimary)
+                                reply.media_url?.let { url ->
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    AsyncImage(
+                                        model = url,
+                                        contentDescription = "Reply media",
+                                        modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp).clip(RoundedCornerShape(10.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
                             }
                         }
                     }
@@ -506,39 +626,35 @@ private fun PostCard(
 
             // ===== Inline reply composer =====
             if (isReplying) {
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF141414))
+                    colors = CardDefaults.cardColors(containerColor = AppColors.cardBgAlt)
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
-                        // Reply media preview
                         replyMediaUri?.let { uri ->
                             Box {
                                 if (replyMediaType == "IMAGE") {
                                     AsyncImage(
                                         model = uri,
                                         contentDescription = "Reply media",
-                                        modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(10.dp)),
+                                        modifier = Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(10.dp)),
                                         contentScale = ContentScale.Crop
                                     )
                                 } else {
                                     Box(
-                                        modifier = Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF333333)),
+                                        modifier = Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(10.dp)).background(AppColors.cardBgSubtle),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Icon(Icons.Default.PlayCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
-                                            Text("Video", fontSize = 11.sp, color = Color.White.copy(alpha = 0.7f))
-                                        }
+                                        Icon(Icons.Default.PlayCircle, contentDescription = null, tint = AppColors.textPrimary, modifier = Modifier.size(28.dp))
                                     }
                                 }
                                 IconButton(
                                     onClick = { onReplyMediaChange(null, "TEXT") },
                                     modifier = Modifier.align(Alignment.TopEnd)
                                 ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color.White, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.Close, contentDescription = "Remove", tint = AppColors.textPrimary, modifier = Modifier.size(16.dp))
                                 }
                             }
                             Spacer(modifier = Modifier.height(6.dp))
@@ -547,18 +663,18 @@ private fun PostCard(
                         OutlinedTextField(
                             value = replyContent,
                             onValueChange = onReplyContentChange,
-                            label = { Text("Responder a ${post.user?.username ?: "usuario"}...", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp) },
+                            label = { Text("Comentar...", color = AppColors.textSecondary, fontSize = 12.sp) },
                             modifier = Modifier.fillMaxWidth(),
                             maxLines = 3,
                             shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                cursorColor = Color.White,
-                                focusedBorderColor = Color.White.copy(alpha = 0.2f),
+                                focusedTextColor = AppColors.textPrimary,
+                                unfocusedTextColor = AppColors.textPrimary,
+                                cursorColor = AppColors.accent,
+                                focusedBorderColor = AppColors.border,
                                 unfocusedBorderColor = Color.Transparent,
-                                focusedContainerColor = Color(0xFF282828),
-                                unfocusedContainerColor = Color(0xFF282828)
+                                focusedContainerColor = AppColors.cardBgSubtle,
+                                unfocusedContainerColor = AppColors.cardBgSubtle
                             )
                         )
 
@@ -570,31 +686,30 @@ private fun PostCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                                IconButton(onClick = onReplyImagePick, modifier = Modifier.size(32.dp)) {
-                                    Icon(Icons.Default.PhotoLibrary, contentDescription = "Photo", tint = Color(0xFFA0F03C), modifier = Modifier.size(20.dp))
-                                }
-                                IconButton(onClick = onReplyVideoPick, modifier = Modifier.size(32.dp)) {
-                                    Icon(Icons.Default.VideoLibrary, contentDescription = "Video", tint = Color(0xFFA0F03C), modifier = Modifier.size(20.dp))
+                                IconButton(onClick = onReplyImagePick, modifier = Modifier.size(28.dp)) {
+                                    Icon(Icons.Default.PhotoLibrary, contentDescription = "Photo", tint = AppColors.accent, modifier = Modifier.size(18.dp))
                                 }
                             }
 
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 TextButton(onClick = onReplyCancel) {
-                                    Text("Cancelar", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                                    Text("Cancelar", color = AppColors.textSecondary, fontSize = 12.sp)
                                 }
                                 Button(
                                     onClick = onReplySubmit,
                                     shape = RoundedCornerShape(16.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFA0F03C)),
+                                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.accent),
                                     enabled = replyContent.isNotBlank() || replyMediaUri != null
                                 ) {
-                                    Text("Responder", color = Color.White, fontSize = 12.sp)
+                                    Text("Comentar", color = AppColors.textOnAccent, fontSize = 12.sp)
                                 }
                             }
                         }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(10.dp))
         }
     }
 }
@@ -609,7 +724,7 @@ private fun UserAvatar(username: String, photoUrl: String?, size: androidx.compo
             contentScale = ContentScale.Crop
         )
     } else {
-        val colors = listOf(Color(0xFFA0F03C), Color(0xFFFF7043), Color(0xFFA0F03C), Color(0xFF42A5F5), Color(0xFFFFB74D))
+        val colors = listOf(AppColors.accent, AppColors.accentDark, AppColors.textSecondary, AppColors.textTertiary, AppColors.accent)
         val colorIndex = username.firstOrNull()?.hashCode()?.rem(colors.size)?.let { if (it < 0) it + colors.size else it } ?: 0
         Box(
             modifier = Modifier.size(size).clip(CircleShape).background(colors[colorIndex].copy(alpha = 0.3f)),
@@ -628,7 +743,7 @@ private fun UserProfileDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF282828),
+        containerColor = AppColors.cardBg,
         modifier = Modifier.fillMaxWidth(0.95f),
         title = {
             Row(
@@ -636,16 +751,16 @@ private fun UserProfileDialog(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Perfil", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("Perfil", color = AppColors.textPrimary, fontWeight = FontWeight.Bold)
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White.copy(alpha = 0.5f))
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = AppColors.textSecondary)
                 }
             }
         },
         text = {
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(32.dp))
+                    CircularProgressIndicator(color = AppColors.accent, strokeWidth = 2.dp, modifier = Modifier.size(32.dp))
                 }
             } else {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -654,10 +769,10 @@ private fun UserProfileDialog(
                         UserAvatar(profile.user.username, profile.user.profile_photo, 56.dp)
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            Text(profile.user.username, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text(profile.user.username, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
                             profile.user.role?.let {
                                 if (it != "NORMAL") {
-                                    Text(it, fontSize = 11.sp, color = Color(0xFFB8F56A))
+                                    Text(it, fontSize = 11.sp, color = AppColors.accent)
                                 }
                             }
                         }
@@ -665,7 +780,7 @@ private fun UserProfileDialog(
 
                     profile.user.bio?.let {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(it, fontSize = 13.sp, color = Color.White.copy(alpha = 0.8f))
+                        Text(it, fontSize = 13.sp, color = AppColors.textSecondary)
                     }
 
                     // Stats
@@ -682,26 +797,26 @@ private fun UserProfileDialog(
                     // Physical info
                     profile.user.weight_kg?.let {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("⚖️ ${it}kg", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                        Text("⚖️ ${it}kg", fontSize = 12.sp, color = AppColors.textSecondary)
                     }
                     profile.user.height_cm?.let {
-                        Text("📏 ${it}cm", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                        Text("� ${it}cm", fontSize = 12.sp, color = AppColors.textSecondary)
                     }
 
                     // Recent posts
                     if (profile.posts.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("Publicaciones recientes", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Publicaciones recientes", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
                         Spacer(modifier = Modifier.height(6.dp))
                         profile.posts.take(5).forEach { post ->
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                 shape = RoundedCornerShape(10.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF333333))
+                                colors = CardDefaults.cardColors(containerColor = AppColors.cardBgSubtle)
                             ) {
                                 Column(modifier = Modifier.padding(10.dp)) {
-                                    Text(post.content, fontSize = 13.sp, color = Color.White.copy(alpha = 0.9f), maxLines = 3, overflow = TextOverflow.Ellipsis)
-                                    Text(formatTimeAgo(post.created_at), fontSize = 10.sp, color = Color.White.copy(alpha = 0.4f))
+                                    Text(post.content, fontSize = 13.sp, color = AppColors.textPrimary, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                                    Text(formatTimeAgo(post.created_at), fontSize = 10.sp, color = AppColors.textTertiary)
                                 }
                             }
                         }
@@ -710,16 +825,16 @@ private fun UserProfileDialog(
                     // Routines
                     if (profile.routines.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("Rutinas", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Rutinas", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
                         Spacer(modifier = Modifier.height(6.dp))
                         profile.routines.take(5).forEach { routine ->
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(routine.name, fontSize = 13.sp, color = Color.White.copy(alpha = 0.8f))
+                                Text(routine.name, fontSize = 13.sp, color = AppColors.textSecondary)
                                 routine._count?.exercises?.let {
-                                    Text("$it ejercicios", fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f))
+                                    Text("$it ejercicios", fontSize = 11.sp, color = AppColors.textTertiary)
                                 }
                             }
                         }
@@ -735,8 +850,8 @@ private fun UserProfileDialog(
 @Composable
 private fun ProfileStat(value: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-        Text(label, fontSize = 10.sp, color = Color.White.copy(alpha = 0.5f))
+        Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
+        Text(label, fontSize = 10.sp, color = AppColors.textSecondary)
     }
 }
 

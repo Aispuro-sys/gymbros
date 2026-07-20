@@ -6,6 +6,9 @@ import android.net.Uri
 import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.content.Context
+import android.provider.MediaStore
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.talos.forge.R
+import com.talos.forge.data.AppSettings
 import com.talos.forge.ui.ProfileViewModel
 import com.talos.forge.ui.components.LoadingSpinner
 import com.talos.forge.ui.theme.AppColors
@@ -50,6 +55,8 @@ fun ProfileScreen(viewModel: ProfileViewModel, onLogout: () -> Unit) {
 
     var isEditing by remember { mutableStateOf(false) }
     var photoBase64 by remember { mutableStateOf<String?>(null) }
+    var showPhotoSourceDialog by remember { mutableStateOf(false) }
+    var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
 
     LaunchedEffect(Unit) { viewModel.loadProfile() }
     LaunchedEffect(updateSuccess) {
@@ -73,37 +80,57 @@ fun ProfileScreen(viewModel: ProfileViewModel, onLogout: () -> Unit) {
 
     val u = user!!
 
-    val photoPickerLauncher = rememberLauncherForActivityResult(
+    fun uriToBase64(uri: Uri): String? {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val bitmap = BitmapFactory.decodeStream(inputStream)
+            inputStream?.close()
+            if (bitmap == null) return null
+
+            val maxDim = 512
+            val ratio = maxDim.toFloat() / maxOf(bitmap.width, bitmap.height)
+            val scaledBitmap = if (ratio < 1f) {
+                Bitmap.createScaledBitmap(
+                    bitmap,
+                    (bitmap.width * ratio).toInt(),
+                    (bitmap.height * ratio).toInt(),
+                    true
+                )
+            } else {
+                bitmap
+            }
+            val outputStream = ByteArrayOutputStream()
+            scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+            val base64 = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
+            "data:image/jpeg;base64,$base64"
+        } catch (_: Exception) { null }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            try {
-                val inputStream = context.contentResolver.openInputStream(uri)
-                val bitmap = BitmapFactory.decodeStream(inputStream)
-                inputStream?.close()
-
-                if (bitmap == null) {
-                    return@rememberLauncherForActivityResult
-                }
-
-                val maxDim = 512
-                val ratio = maxDim.toFloat() / maxOf(bitmap.width, bitmap.height)
-                val scaledBitmap = if (ratio < 1f) {
-                    Bitmap.createScaledBitmap(
-                        bitmap,
-                        (bitmap.width * ratio).toInt(),
-                        (bitmap.height * ratio).toInt(),
-                        true
-                    )
-                } else {
-                    bitmap
-                }
-                val outputStream = ByteArrayOutputStream()
-                scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
-                val base64 = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
-                photoBase64 = "data:image/jpeg;base64,$base64"
-            } catch (_: Exception) {}
+            photoBase64 = uriToBase64(uri)
         }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success: Boolean ->
+        if (success && cameraImageUri != null) {
+            photoBase64 = uriToBase64(cameraImageUri!!)
+        }
+    }
+
+    fun launchCamera() {
+        val photoFile = java.io.File(context.cacheDir, "photos/profile_${System.currentTimeMillis()}.jpg")
+        photoFile.parentFile?.mkdirs()
+        cameraImageUri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            photoFile
+        )
+        cameraImageUri?.let { cameraLauncher.launch(it) }
     }
 
     Column(
@@ -136,7 +163,7 @@ fun ProfileScreen(viewModel: ProfileViewModel, onLogout: () -> Unit) {
                             .size(72.dp)
                             .clip(CircleShape)
                             .then(
-                                if (isEditing) Modifier.clickable { photoPickerLauncher.launch("image/*") } else Modifier
+                                if (isEditing) Modifier.clickable { showPhotoSourceDialog = true } else Modifier
                             ),
                         contentAlignment = Alignment.BottomEnd
                     ) {
@@ -150,40 +177,40 @@ fun ProfileScreen(viewModel: ProfileViewModel, onLogout: () -> Unit) {
                             )
                         } else {
                             Box(
-                                modifier = Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.15f)),
+                                modifier = Modifier.fillMaxSize().background(AppColors.accentMuted),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(36.dp))
+                                Icon(Icons.Default.Person, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(36.dp))
                             }
                         }
                         if (isEditing) {
                             Box(
-                                modifier = Modifier.size(24.dp).clip(CircleShape).background(Color(0xFFA0F03C)),
+                                modifier = Modifier.size(24.dp).clip(CircleShape).background(AppColors.accent),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.CameraAlt, contentDescription = "Cambiar foto", tint = Color.White, modifier = Modifier.size(14.dp))
+                                Icon(Icons.Default.CameraAlt, contentDescription = "Cambiar foto", tint = AppColors.textOnAccent, modifier = Modifier.size(14.dp))
                             }
                         }
                     }
                     if (isEditing) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("Toca la foto para cambiar", fontSize = 11.sp, color = Color.White.copy(alpha = 0.6f))
+                        Text("Toca la foto para cambiar", fontSize = 11.sp, color = AppColors.textSecondary)
                     }
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(u.username, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    Text(u.email, fontSize = 13.sp, color = Color.White.copy(alpha = 0.7f))
+                    Text(u.username, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
+                    Text(u.email, fontSize = 13.sp, color = AppColors.textSecondary)
                     if (u.role != "NORMAL") {
                         Spacer(modifier = Modifier.height(6.dp))
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color.White.copy(alpha = 0.15f)
+                            color = AppColors.accentMuted
                         ) {
                             Text(
                                 u.role,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = AppColors.accent
                             )
                         }
                     }
@@ -195,13 +222,13 @@ fun ProfileScreen(viewModel: ProfileViewModel, onLogout: () -> Unit) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFF3B30).copy(alpha = 0.15f))
+                colors = CardDefaults.cardColors(containerColor = AppColors.danger.copy(alpha = 0.08f))
             ) {
                 Text(
                     it,
                     modifier = Modifier.padding(14.dp),
                     fontSize = 13.sp,
-                    color = Color(0xFFFF6B6B)
+                    color = AppColors.danger
                 )
             }
         }
@@ -235,7 +262,8 @@ fun ProfileScreen(viewModel: ProfileViewModel, onLogout: () -> Unit) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF282828)),
+                colors = CardDefaults.cardColors(containerColor = AppColors.cardBg),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.border),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
@@ -244,11 +272,11 @@ fun ProfileScreen(viewModel: ProfileViewModel, onLogout: () -> Unit) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Datos Personales", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Datos Personales", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
                         TextButton(onClick = { isEditing = true }) {
-                            Icon(Icons.Default.Edit, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Edit, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Editar", fontSize = 13.sp, color = Color.White)
+                            Text("Editar", fontSize = 13.sp, color = AppColors.accent)
                         }
                     }
                     Spacer(modifier = Modifier.height(14.dp))
@@ -261,9 +289,9 @@ fun ProfileScreen(viewModel: ProfileViewModel, onLogout: () -> Unit) {
                     ProfileRow("Género", if (u.gender == "M") "Masculino" else "Femenino")
                     if (u.bio != null) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Bio", fontSize = 14.sp, color = Color.White.copy(alpha = 0.7f))
+                        Text("Bio", fontSize = 14.sp, color = AppColors.textSecondary)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(u.bio, fontSize = 14.sp, color = Color.White.copy(alpha = 0.9f))
+                        Text(u.bio, fontSize = 14.sp, color = AppColors.textPrimary)
                     }
                 }
             }
@@ -271,24 +299,141 @@ fun ProfileScreen(viewModel: ProfileViewModel, onLogout: () -> Unit) {
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // Logout
+        // Settings gear with dropdown
         var showLogoutDialog by remember { mutableStateOf(false) }
+        var showSettingsMenu by remember { mutableStateOf(false) }
 
-        OutlinedButton(
-            onClick = { showLogoutDialog = true },
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(14.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.danger.copy(alpha = 0.4f)),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = AppColors.danger
-            )
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.ExitToApp, contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(10.dp))
-            Text("Cerrar Sesión", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            IconButton(
+                onClick = { showSettingsMenu = !showSettingsMenu },
+                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(AppColors.cardBgAlt)
+            ) {
+                Icon(
+                    Icons.Default.Settings,
+                    contentDescription = "Configuración",
+                    tint = AppColors.textPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            DropdownMenu(
+                expanded = showSettingsMenu,
+                onDismissRequest = { showSettingsMenu = false },
+                modifier = Modifier.width(220.dp)
+            ) {
+                // Language toggle
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Language, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Idioma", fontSize = 14.sp, color = AppColors.textPrimary, fontWeight = FontWeight.Medium)
+                                Text(if (AppSettings.isSpanish) "Español" else "English", fontSize = 11.sp, color = AppColors.textSecondary)
+                            }
+                            Text(
+                                if (AppSettings.isSpanish) "EN" else "ES",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppColors.accent
+                            )
+                        }
+                    },
+                    onClick = { AppSettings.toggleLanguage(); showSettingsMenu = false }
+                )
+                HorizontalDivider(color = AppColors.divider)
+                // Dark mode toggle
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                if (AppSettings.isDarkMode.value) Icons.Default.LightMode else Icons.Default.DarkMode,
+                                contentDescription = null,
+                                tint = AppColors.accent,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Tema", fontSize = 14.sp, color = AppColors.textPrimary, fontWeight = FontWeight.Medium)
+                                Text(if (AppSettings.isDarkMode.value) "Oscuro" else "Claro", fontSize = 11.sp, color = AppColors.textSecondary)
+                            }
+                            Switch(
+                                checked = AppSettings.isDarkMode.value,
+                                onCheckedChange = { AppSettings.setDarkMode(it) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = AppColors.textOnAccent,
+                                    checkedTrackColor = AppColors.accent,
+                                    uncheckedThumbColor = AppColors.textSecondary,
+                                    uncheckedTrackColor = AppColors.cardBgAlt
+                                )
+                            )
+                        }
+                    },
+                    onClick = { AppSettings.toggleDarkMode() }
+                )
+                HorizontalDivider(color = AppColors.divider)
+                // Logout
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = AppColors.danger, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text("Cerrar Sesión", fontSize = 14.sp, color = AppColors.danger, fontWeight = FontWeight.SemiBold)
+                        }
+                    },
+                    onClick = { showSettingsMenu = false; showLogoutDialog = true }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        if (showPhotoSourceDialog) {
+            AlertDialog(
+                onDismissRequest = { showPhotoSourceDialog = false },
+                containerColor = AppColors.cardBg,
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("Cambiar foto", color = AppColors.textPrimary, fontWeight = FontWeight.Bold)
+                    }
+                },
+                text = {
+                    Column {
+                        TextButton(
+                            onClick = {
+                                showPhotoSourceDialog = false
+                                launchCamera()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.PhotoCamera, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(22.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text("Tomar foto", color = AppColors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                        }
+                        TextButton(
+                            onClick = {
+                                showPhotoSourceDialog = false
+                                galleryLauncher.launch("image/*")
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(22.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text("Elegir de galería", color = AppColors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showPhotoSourceDialog = false }) {
+                        Text("Cancelar", color = AppColors.textSecondary)
+                    }
+                }
+            )
+        }
 
         if (showLogoutDialog) {
             AlertDialog(
@@ -345,8 +490,8 @@ private fun ProfileRow(label: String, value: String) {
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, fontSize = 14.sp, color = Color.White.copy(alpha = 0.7f))
-        Text(value, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(label, fontSize = 14.sp, color = AppColors.textSecondary)
+        Text(value, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AppColors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -384,21 +529,22 @@ private fun InlineEditForm(
     var phone by remember { mutableStateOf(user.phone ?: "") }
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor = Color.White,
-        unfocusedTextColor = Color.White,
-        cursorColor = Color.White,
-        focusedBorderColor = Color.White,
-        unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-        focusedLabelColor = Color.White.copy(alpha = 0.8f),
-        unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
-        focusedContainerColor = Color(0xFF141414),
-        unfocusedContainerColor = Color(0xFF141414)
+        focusedTextColor = AppColors.textPrimary,
+        unfocusedTextColor = AppColors.textPrimary,
+        cursorColor = AppColors.accent,
+        focusedBorderColor = AppColors.accent,
+        unfocusedBorderColor = AppColors.border,
+        focusedLabelColor = AppColors.accent,
+        unfocusedLabelColor = AppColors.textSecondary,
+        focusedContainerColor = AppColors.cardBgAlt,
+        unfocusedContainerColor = AppColors.cardBgAlt
     )
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF282828)),
+        colors = CardDefaults.cardColors(containerColor = AppColors.cardBg),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.border),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
@@ -410,9 +556,9 @@ private fun InlineEditForm(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Editar Perfil", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("Editar Perfil", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
                 if (isUpdating) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = AppColors.accent)
                 }
             }
 
@@ -458,7 +604,7 @@ private fun InlineEditForm(
             )
 
             // Goal selector
-            Text("Objetivo", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.8f))
+            Text("Objetivo", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AppColors.textSecondary)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("LOSE_WEIGHT" to "Bajar", "GAIN_MUSCLE" to "Músculo", "MAINTENANCE" to "Mantener", "RECOMP" to "Recomp").forEach { (value, label) ->
                     FilterChip(
@@ -466,19 +612,19 @@ private fun InlineEditForm(
                         onClick = { goal = value },
                         label = { Text(label, fontSize = 12.sp) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color.White,
-                            selectedLabelColor = Color(0xFF141414)
+                            selectedContainerColor = AppColors.accent,
+                            selectedLabelColor = AppColors.textOnAccent
                         )
                     )
                 }
             }
 
             // Body Type selector with visual cards
-            Text("Tipo de Cuerpo", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.8f))
+            Text("Tipo de Cuerpo", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AppColors.textSecondary)
             BodyTypeSelector(selected = bodyType, gender = gender, onSelect = { bodyType = it })
 
             // Gender selector
-            Text("Género", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.8f))
+            Text("Género", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AppColors.textSecondary)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("M" to "Masculino", "F" to "Femenino").forEach { (value, label) ->
                     FilterChip(
@@ -486,8 +632,8 @@ private fun InlineEditForm(
                         onClick = { gender = value },
                         label = { Text(label, fontSize = 12.sp) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color.White,
-                            selectedLabelColor = Color(0xFF141414)
+                            selectedContainerColor = AppColors.accent,
+                            selectedLabelColor = AppColors.textOnAccent
                         )
                     )
                 }
@@ -515,7 +661,7 @@ private fun InlineEditForm(
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color.White.copy(alpha = 0.7f)
+                        contentColor = AppColors.textSecondary
                     )
                 ) {
                     Text("Cancelar")
@@ -538,12 +684,12 @@ private fun InlineEditForm(
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Color(0xFF141414)
+                        containerColor = AppColors.accent,
+                        contentColor = AppColors.textOnAccent
                     )
                 ) {
                     if (isUpdating) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color(0xFF141414))
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = AppColors.textOnAccent)
                     } else {
                         Text("Guardar", fontWeight = FontWeight.Bold)
                     }
@@ -576,9 +722,9 @@ private fun BodyTypeSelector(selected: String, gender: String, onSelect: (String
                     .clickable { onSelect(value) },
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isSelected) Color.White.copy(alpha = 0.12f) else Color(0xFF2A2A2A)
+                    containerColor = if (isSelected) AppColors.accentMuted else AppColors.cardBgAlt
                 ),
-                border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, Color.White) else null
+                border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, AppColors.accent) else null
             ) {
                 Row(
                     modifier = Modifier.padding(14.dp),
@@ -588,7 +734,7 @@ private fun BodyTypeSelector(selected: String, gender: String, onSelect: (String
                         modifier = Modifier
                             .size(60.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color.White.copy(alpha = 0.08f)),
+                            .background(AppColors.cardBgSubtle),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
@@ -600,11 +746,11 @@ private fun BodyTypeSelector(selected: String, gender: String, onSelect: (String
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(label, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        Text(desc, fontSize = 11.sp, color = Color.White.copy(alpha = 0.6f), maxLines = 2)
+                        Text(label, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
+                        Text(desc, fontSize = 11.sp, color = AppColors.textSecondary, maxLines = 2)
                     }
                     if (isSelected) {
-                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Check, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(20.dp))
                     }
                 }
             }

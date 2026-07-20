@@ -16,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.talos.forge.R
 import com.talos.forge.ui.AuthViewModel
+import com.talos.forge.ui.theme.AppColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -43,328 +43,299 @@ fun AuthScreen(viewModel: AuthViewModel) {
     var username by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("M") }
 
-    // Validation states
     var usernameStatus by remember { mutableStateOf<FieldStatus>(FieldStatus.Idle) }
     var emailStatus by remember { mutableStateOf<FieldStatus>(FieldStatus.Idle) }
 
-    val gradientColors = listOf(
-        Color(0xFF000014),
-        Color(0xFF141414),
-        Color(0xFF282828)
-    )
-
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(gradientColors))
+            .background(AppColors.bg)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
+        Spacer(modifier = Modifier.height(80.dp))
+
+        Image(
+            painter = painterResource(id = R.drawable.logo_black),
+            contentDescription = "Talos Forge Logo",
+            modifier = Modifier.size(130.dp)
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Text(
+            text = if (isLogin) "Bienvenido" else "Crear Cuenta",
+            fontSize = 26.sp,
+            fontWeight = FontWeight.Black,
+            color = AppColors.textPrimary
+        )
+        Text(
+            text = if (isLogin) "Inicia sesión para continuar" else "Completa tus datos",
+            fontSize = 14.sp,
+            color = AppColors.textSecondary
+        )
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        // Tab toggle
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(AppColors.cardBgAlt)
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Spacer(modifier = Modifier.height(72.dp))
-
-            // Logo libre sobre el gradiente
-            Image(
-                painter = painterResource(id = R.drawable.logo_white),
-                contentDescription = "Talos Forge Logo",
-                modifier = Modifier.size(150.dp)
-            )
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            // Tarjeta semi-transparente con el formulario
-            Surface(
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp)),
-                shape = RoundedCornerShape(24.dp),
-                color = Color.White.copy(alpha = 0.10f)
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isLogin) AppColors.accent else Color.Transparent)
+                    .clickable { isLogin = true }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Text(
+                    "Iniciar Sesión",
+                    fontSize = 13.sp,
+                    fontWeight = if (isLogin) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isLogin) AppColors.textOnAccent else AppColors.textSecondary
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (!isLogin) AppColors.accent else Color.Transparent)
+                    .clickable { isLogin = false }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "Registrarse",
+                    fontSize = 13.sp,
+                    fontWeight = if (!isLogin) FontWeight.Bold else FontWeight.Normal,
+                    color = if (!isLogin) AppColors.textOnAccent else AppColors.textSecondary
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Fields
+        if (!isLogin) {
+            ValidatedField(
+                value = username,
+                onValueChange = { newValue ->
+                    username = newValue
+                    usernameStatus = if (newValue.length >= 3) FieldStatus.Checking else FieldStatus.Idle
+                    if (newValue.length >= 3) {
+                        scope.launch {
+                            try {
+                                val available = withContext(Dispatchers.IO) {
+                                    viewModel.repository.checkUsername(newValue)
+                                }
+                                usernameStatus = if (available) FieldStatus.Available else FieldStatus.Taken
+                            } catch (e: Exception) {
+                                usernameStatus = FieldStatus.Idle
+                            }
+                        }
+                    }
+                },
+                label = "Usuario",
+                status = usernameStatus
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+        }
+
+        if (!isLogin) {
+            ValidatedField(
+                value = email,
+                onValueChange = { newValue ->
+                    email = newValue
+                    val isValidEmail = android.util.Patterns.EMAIL_ADDRESS.matcher(newValue).matches()
+                    emailStatus = if (isValidEmail) FieldStatus.Checking else FieldStatus.Idle
+                    if (isValidEmail) {
+                        scope.launch {
+                            try {
+                                val available = withContext(Dispatchers.IO) {
+                                    viewModel.repository.checkEmail(newValue)
+                                }
+                                emailStatus = if (available) FieldStatus.Available else FieldStatus.Taken
+                            } catch (e: Exception) {
+                                emailStatus = FieldStatus.Idle
+                            }
+                        }
+                    }
+                },
+                label = "Email",
+                keyboardType = KeyboardType.Email,
+                status = emailStatus
+            )
+        } else {
+            AuthField(
+                value = email,
+                onValueChange = { email = it },
+                label = "Email",
+                keyboardType = KeyboardType.Email
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        AuthField(
+            value = password,
+            onValueChange = { password = it },
+            label = "Contraseña",
+            keyboardType = KeyboardType.Password,
+            isPassword = true
+        )
+
+        AnimatedVisibility(
+            visible = !isLogin,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(18.dp))
+                Text(
+                    "Género",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = AppColors.textSecondary,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        text = if (isLogin) "Bienvenido" else "Crear Cuenta",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+                    GenderChip(
+                        label = "Masculino",
+                        selected = gender == "M",
+                        onClick = { gender = "M" },
+                        modifier = Modifier.weight(1f)
                     )
-                    Text(
-                        text = if (isLogin) "Inicia sesión para continuar" else "Completa tus datos",
-                        fontSize = 13.sp,
-                        color = Color.White.copy(alpha = 0.6f)
+                    GenderChip(
+                        label = "Femenino",
+                        selected = gender == "F",
+                        onClick = { gender = "F" },
+                        modifier = Modifier.weight(1f)
                     )
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // Tab toggle
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.08f))
-                            .padding(4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isLogin) Color.White else Color.Transparent)
-                                .clickable { isLogin = true }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "Iniciar Sesión",
-                                fontSize = 13.sp,
-                                fontWeight = if (isLogin) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isLogin) Color(0xFF000014) else Color.White.copy(alpha = 0.6f)
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (!isLogin) Color.White else Color.Transparent)
-                                .clickable { isLogin = false }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "Registrarse",
-                                fontSize = 13.sp,
-                                fontWeight = if (!isLogin) FontWeight.Bold else FontWeight.Normal,
-                                color = if (!isLogin) Color(0xFF000014) else Color.White.copy(alpha = 0.6f)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // Campos
-                    if (!isLogin) {
-                        ValidatedField(
-                            value = username,
-                            onValueChange = { newValue ->
-                                username = newValue
-                                usernameStatus = if (newValue.length >= 3) FieldStatus.Checking else FieldStatus.Idle
-                                if (newValue.length >= 3) {
-                                    scope.launch {
-                                        try {
-                                            val available = withContext(Dispatchers.IO) {
-                                                viewModel.repository.checkUsername(newValue)
-                                            }
-                                            usernameStatus = if (available) FieldStatus.Available else FieldStatus.Taken
-                                        } catch (e: Exception) {
-                                            usernameStatus = FieldStatus.Idle
-                                        }
-                                    }
-                                }
-                            },
-                            label = "Usuario",
-                            status = usernameStatus
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-
-                    if (!isLogin) {
-                        ValidatedField(
-                            value = email,
-                            onValueChange = { newValue ->
-                                email = newValue
-                                val isValidEmail = android.util.Patterns.EMAIL_ADDRESS.matcher(newValue).matches()
-                                emailStatus = if (isValidEmail) FieldStatus.Checking else FieldStatus.Idle
-                                if (isValidEmail) {
-                                    scope.launch {
-                                        try {
-                                            val available = withContext(Dispatchers.IO) {
-                                                viewModel.repository.checkEmail(newValue)
-                                            }
-                                            emailStatus = if (available) FieldStatus.Available else FieldStatus.Taken
-                                        } catch (e: Exception) {
-                                            emailStatus = FieldStatus.Idle
-                                        }
-                                    }
-                                }
-                            },
-                            label = "Email",
-                            keyboardType = KeyboardType.Email,
-                            status = emailStatus
-                        )
-                    } else {
-                        AuthField(
-                            value = email,
-                            onValueChange = { email = it },
-                            label = "Email",
-                            keyboardType = KeyboardType.Email
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    AuthField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = "Contraseña",
-                        keyboardType = KeyboardType.Password,
-                        isPassword = true
-                    )
-
-                    // Gender selector (only for register)
-                    AnimatedVisibility(
-                        visible = !isLogin,
-                        enter = fadeIn(),
-                        exit = fadeOut()
-                    ) {
-                        Column {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                "Género",
-                                fontSize = 13.sp,
-                                color = Color.White.copy(alpha = 0.6f),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                GenderChip(
-                                    label = "Masculino",
-                                    selected = gender == "M",
-                                    onClick = { gender = "M" },
-                                    modifier = Modifier.weight(1f)
-                                )
-                                GenderChip(
-                                    label = "Femenino",
-                                    selected = gender == "F",
-                                    onClick = { gender = "F" },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-                    }
-
-                    // Error
-                    error?.let {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = Color(0xFFE53935).copy(alpha = 0.15f)
-                        ) {
-                            Text(
-                                text = it,
-                                modifier = Modifier.padding(12.dp),
-                                fontSize = 13.sp,
-                                color = Color(0xFFFF6B6B)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // Botón
-                    val canSubmit = if (isLogin) {
-                        email.isNotBlank() && password.isNotBlank()
-                    } else {
-                        email.isNotBlank() && password.isNotBlank() && username.isNotBlank() &&
-                                usernameStatus == FieldStatus.Available &&
-                                emailStatus == FieldStatus.Available
-                    }
-
-                    Button(
-                        onClick = {
-                            if (isLogin) {
-                                viewModel.login(email, password)
-                            } else {
-                                viewModel.register(
-                                    username = username,
-                                    email = email,
-                                    password = password,
-                                    gender = gender
-                                )
-                            }
-                        },
-                        enabled = !isLoading && canSubmit,
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            disabledContainerColor = Color.White.copy(alpha = 0.15f),
-                            contentColor = Color(0xFF000014),
-                            disabledContentColor = Color.White.copy(alpha = 0.3f)
-                        )
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                color = Color(0xFF000014),
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        } else {
-                            Text(
-                                text = if (isLogin) "Iniciar Sesión" else "Crear Cuenta",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    if (!canSubmit && !isLoading) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = if (isLogin) {
-                                "Completa email y contraseña"
-                            } else {
-                                when {
-                                    username.isBlank() -> "Ingresa un usuario (mín. 3 caracteres)"
-                                    usernameStatus != FieldStatus.Available -> "Verifica tu usuario"
-                                    email.isBlank() -> "Ingresa tu email"
-                                    emailStatus != FieldStatus.Available -> "Verifica tu email"
-                                    password.isBlank() -> "Ingresa una contraseña"
-                                    else -> "Completa todos los campos"
-                                }
-                            },
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.4f)
-                        )
-                    }
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Toggle login/register
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+        error?.let {
+            Spacer(modifier = Modifier.height(14.dp))
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = AppColors.danger.copy(alpha = 0.08f)
             ) {
                 Text(
-                    text = if (isLogin) "¿No tienes cuenta? " else "¿Ya tienes cuenta? ",
+                    text = it,
+                    modifier = Modifier.padding(14.dp),
                     fontSize = 13.sp,
-                    color = Color.White.copy(alpha = 0.85f)
-                )
-                Text(
-                    text = if (isLogin) "Regístrate" else "Inicia sesión",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier
-                        .padding(horizontal = 4.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .clickable { isLogin = !isLogin }
-                        .padding(horizontal = 4.dp)
+                    color = AppColors.danger
                 )
             }
-
-            Spacer(modifier = Modifier.height(32.dp))
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        val canSubmit = if (isLogin) {
+            email.isNotBlank() && password.isNotBlank()
+        } else {
+            email.isNotBlank() && password.isNotBlank() && username.isNotBlank() &&
+                    usernameStatus == FieldStatus.Available &&
+                    emailStatus == FieldStatus.Available
+        }
+
+        Button(
+            onClick = {
+                if (isLogin) {
+                    viewModel.login(email, password)
+                } else {
+                    viewModel.register(
+                        username = username,
+                        email = email,
+                        password = password,
+                        gender = gender
+                    )
+                }
+            },
+            enabled = !isLoading && canSubmit,
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = AppColors.accent,
+                disabledContainerColor = AppColors.accent.copy(alpha = 0.2f),
+                contentColor = AppColors.textOnAccent,
+                disabledContentColor = AppColors.textOnAccent.copy(alpha = 0.4f)
+            ),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    color = AppColors.textOnAccent,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(22.dp)
+                )
+            } else {
+                Text(
+                    text = if (isLogin) "Iniciar Sesión" else "Crear Cuenta",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        if (!canSubmit && !isLoading) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = if (isLogin) {
+                    "Completa email y contraseña"
+                } else {
+                    when {
+                        username.isBlank() -> "Ingresa un usuario (mín. 3 caracteres)"
+                        usernameStatus != FieldStatus.Available -> "Verifica tu usuario"
+                        email.isBlank() -> "Ingresa tu email"
+                        emailStatus != FieldStatus.Available -> "Verifica tu email"
+                        password.isBlank() -> "Ingresa una contraseña"
+                        else -> "Completa todos los campos"
+                    }
+                },
+                fontSize = 11.sp,
+                color = AppColors.textTertiary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (isLogin) "¿No tienes cuenta? " else "¿Ya tienes cuenta? ",
+                fontSize = 13.sp,
+                color = AppColors.textSecondary
+            )
+            Text(
+                text = if (isLogin) "Regístrate" else "Inicia sesión",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = AppColors.accent,
+                modifier = Modifier
+                    .padding(horizontal = 4.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable { isLogin = !isLogin }
+                    .padding(horizontal = 4.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
     }
 }
 
@@ -381,10 +352,10 @@ private fun ValidatedField(
     modifier: Modifier = Modifier.fillMaxWidth()
 ) {
     val borderColor = when (status) {
-        FieldStatus.Available -> Color(0xFF4CAF50)
-        FieldStatus.Taken -> Color(0xFFE53935)
-        FieldStatus.Checking -> Color(0xFFFFA726)
-        FieldStatus.Idle -> Color.White.copy(alpha = 0.3f)
+        FieldStatus.Available -> AppColors.success
+        FieldStatus.Taken -> AppColors.danger
+        FieldStatus.Checking -> AppColors.warning
+        FieldStatus.Idle -> AppColors.border
     }
     val statusText = when (status) {
         FieldStatus.Available -> "Disponible"
@@ -393,9 +364,9 @@ private fun ValidatedField(
         FieldStatus.Idle -> ""
     }
     val statusColor = when (status) {
-        FieldStatus.Available -> Color(0xFF4CAF50)
-        FieldStatus.Taken -> Color(0xFFE53935)
-        FieldStatus.Checking -> Color(0xFFFFA726)
+        FieldStatus.Available -> AppColors.success
+        FieldStatus.Taken -> AppColors.danger
+        FieldStatus.Checking -> AppColors.warning
         FieldStatus.Idle -> Color.Transparent
     }
 
@@ -403,28 +374,28 @@ private fun ValidatedField(
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            label = { Text(label, fontSize = 13.sp, color = Color.White.copy(alpha = 0.5f)) },
+            label = { Text(label, fontSize = 13.sp, color = AppColors.textSecondary) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
             visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
+                focusedTextColor = AppColors.textPrimary,
+                unfocusedTextColor = AppColors.textPrimary,
                 focusedBorderColor = borderColor,
                 unfocusedBorderColor = borderColor,
                 focusedLabelColor = borderColor,
-                unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
-                cursorColor = Color.White,
-                focusedContainerColor = Color.White.copy(alpha = 0.08f),
-                unfocusedContainerColor = Color.White.copy(alpha = 0.05f)
+                unfocusedLabelColor = AppColors.textSecondary,
+                cursorColor = AppColors.accent,
+                focusedContainerColor = AppColors.cardBg,
+                unfocusedContainerColor = AppColors.cardBg
             ),
             trailingIcon = {
                 when (status) {
-                    FieldStatus.Available -> Text("✓", color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold)
-                    FieldStatus.Taken -> Text("✗", color = Color(0xFFE53935), fontWeight = FontWeight.Bold)
-                    FieldStatus.Checking -> CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(16.dp), color = Color(0xFFFFA726))
+                    FieldStatus.Available -> Text("✓", color = AppColors.success, fontWeight = FontWeight.Bold)
+                    FieldStatus.Taken -> Text("✗", color = AppColors.danger, fontWeight = FontWeight.Bold)
+                    FieldStatus.Checking -> CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(16.dp), color = AppColors.warning)
                     FieldStatus.Idle -> {}
                 }
             }
@@ -450,7 +421,7 @@ private fun GenderChip(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(if (selected) Color.White else Color.White.copy(alpha = 0.08f))
+            .background(if (selected) AppColors.accent else AppColors.cardBgAlt)
             .clickable { onClick() }
             .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center
@@ -459,7 +430,7 @@ private fun GenderChip(
             text = label,
             fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) Color(0xFF000014) else Color.White.copy(alpha = 0.7f)
+            color = if (selected) AppColors.textOnAccent else AppColors.textSecondary
         )
     }
 }
@@ -476,22 +447,22 @@ private fun AuthField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label, fontSize = 13.sp, color = Color.White.copy(alpha = 0.5f)) },
+        label = { Text(label, fontSize = 13.sp, color = AppColors.textSecondary) },
         modifier = modifier,
         singleLine = true,
         shape = RoundedCornerShape(14.dp),
         visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
-            focusedBorderColor = Color.White,
-            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-            focusedLabelColor = Color.White,
-            unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
-            cursorColor = Color.White,
-            focusedContainerColor = Color.White.copy(alpha = 0.08f),
-            unfocusedContainerColor = Color.White.copy(alpha = 0.05f)
+            focusedTextColor = AppColors.textPrimary,
+            unfocusedTextColor = AppColors.textPrimary,
+            focusedBorderColor = AppColors.accent,
+            unfocusedBorderColor = AppColors.border,
+            focusedLabelColor = AppColors.accent,
+            unfocusedLabelColor = AppColors.textSecondary,
+            cursorColor = AppColors.accent,
+            focusedContainerColor = AppColors.cardBg,
+            unfocusedContainerColor = AppColors.cardBg
         )
     )
 }

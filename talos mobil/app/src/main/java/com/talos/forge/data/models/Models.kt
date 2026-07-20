@@ -468,15 +468,88 @@ data class ShareRoutineRequest(val routine_id: String)
 data class TeamPostRequest(val content: String)
 data class TeamPostResponse(val post: TeamPost)
 
-// ===== Progress Photos =====
+// ===== Progress Photos / Body Logs =====
 data class ProgressPhoto(
     val id: String,
-    val photo_url: String,
+    val photo_url: String? = null,
     val weight_logged: Float? = null,
+    val waist_cm: Float? = null,
+    val chest_cm: Float? = null,
+    val hip_cm: Float? = null,
+    val arm_cm: Float? = null,
+    val leg_cm: Float? = null,
+    val body_fat_pct: Float? = null,
+    val note: String? = null,
     val date: String,
     val created_at: String
 )
 data class ProgressPhotosResponse(val photos: List<ProgressPhoto> = emptyList())
-data class UploadProgressPhotoRequest(val photo_url: String, val weight_logged: Float? = null)
+data class UploadProgressPhotoRequest(
+    val photo_url: String? = null,
+    val weight_logged: Float? = null,
+    val waist_cm: Float? = null,
+    val chest_cm: Float? = null,
+    val hip_cm: Float? = null,
+    val arm_cm: Float? = null,
+    val leg_cm: Float? = null,
+    val body_fat_pct: Float? = null,
+    val note: String? = null
+)
 data class ProgressPhotoResponse(val photo: ProgressPhoto)
-data class UpdateProgressPhotoRequest(val weight_logged: Float? = null)
+data class UpdateProgressPhotoRequest(
+    val weight_logged: Float? = null,
+    val waist_cm: Float? = null,
+    val chest_cm: Float? = null,
+    val hip_cm: Float? = null,
+    val arm_cm: Float? = null,
+    val leg_cm: Float? = null,
+    val body_fat_pct: Float? = null,
+    val note: String? = null
+)
+
+// ===== Tracking Stats =====
+data class TrackingStats(
+    val streak: Int = 0,
+    val longest_streak: Int = 0,
+    val workouts_this_week: Int = 0,
+    val total_workout_days: Int = 0,
+    val weekly_counts: List<WeeklyCount> = emptyList(),
+    val meals_this_week: Int = 0,
+    val total_meals: Int = 0,
+    val rest_days: Int = 0
+)
+data class WeeklyCount(
+    val week_start: String = "",
+    val count: Int = 0
+)
+data class TrackingStatsResponse(
+    val streak: Int = 0,
+    val longest_streak: Int = 0,
+    val workouts_this_week: Int = 0,
+    val total_workout_days: Int = 0,
+    val weekly_counts: List<WeeklyCount> = emptyList(),
+    val meals_this_week: Int = 0,
+    val total_meals: Int = 0,
+    val rest_days: Int = 0
+)
+
+// ===== Workout Logs =====
+data class WorkoutLog(
+    val id: String,
+    val user_id: String = "",
+    val date: String,
+    val type: String = "WORKOUT",
+    val duration_min: Int? = null,
+    val intensity: String? = null,
+    val notes: String? = null,
+    val created_at: String = ""
+)
+data class WorkoutLogsResponse(val logs: List<WorkoutLog> = emptyList())
+data class WorkoutLogResponse(val log: WorkoutLog)
+data class WorkoutLogRequest(
+    val type: String,
+    val duration_min: Int? = null,
+    val intensity: String? = null,
+    val notes: String? = null,
+    val date: String? = null
+)

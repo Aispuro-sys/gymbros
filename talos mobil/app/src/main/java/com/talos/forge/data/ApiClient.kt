@@ -11,7 +11,8 @@ object ApiClient {
     // Emulator: http://10.0.2.2:3000/api/
     // Physical device same WiFi: http://<YOUR_PC_IP>:3000/api/
     // Tailscale (works from any network): http://<YOUR_TAILSCALE_IP>:3000/api/
-    private const val BASE_URL = "http://100.113.102.34:3000/api/"
+    private const val BASE_URL = "http://100.101.98.111:3000/api/"
+    val staticBaseUrl: String get() = BASE_URL.removeSuffix("api/").removeSuffix("/") + "/exercises-dataset/"
 
     private lateinit var sessionManager: SessionManager
 

@@ -79,15 +79,15 @@ private fun TeamsListScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 FloatingActionButton(
                     onClick = { showJoinDialog = true },
-                    containerColor = Color(0xFF3D3D3D),
-                    contentColor = Color.White
+                    containerColor = AppColors.cardBgAlt,
+                    contentColor = AppColors.textPrimary
                 ) {
                     Icon(Icons.Default.GroupAdd, contentDescription = "Join")
                 }
                 FloatingActionButton(
                     onClick = { showCreateDialog = true },
-                    containerColor = Color.White,
-                    contentColor = Color(0xFF1A1A1A)
+                    containerColor = AppColors.accent,
+                    contentColor = AppColors.textOnAccent
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Create")
                 }
@@ -103,11 +103,11 @@ private fun TeamsListScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Default.Groups, contentDescription = null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(56.dp))
+                    Icon(Icons.Default.Groups, contentDescription = null, tint = AppColors.textTertiary, modifier = Modifier.size(56.dp))
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("Sin equipos", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Sin equipos", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Crea un equipo o únete con un código", fontSize = 13.sp, color = Color.White.copy(alpha = 0.6f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    Text("Crea un equipo o únete con un código", fontSize = 13.sp, color = AppColors.textSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 }
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -145,7 +145,8 @@ private fun TeamCard(team: Team, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF282828)),
+        colors = CardDefaults.cardColors(containerColor = AppColors.cardBg),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.border),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
@@ -153,26 +154,26 @@ private fun TeamCard(team: Team, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.size(48.dp).clip(CircleShape).background(Color(0xFFA0F03C).copy(alpha = 0.15f)),
+                modifier = Modifier.size(48.dp).clip(CircleShape).background(AppColors.accentMuted),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     team.name.take(2).uppercase(),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFB8F56A)
+                    color = AppColors.accent
                 )
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(team.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(team.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     "${team.members.size} miembros${if (team.role == "ADMIN") " · Admin" else ""}",
                     fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.6f)
+                    color = AppColors.textSecondary
                 )
             }
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.White.copy(alpha = 0.4f))
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = AppColors.textTertiary)
         }
     }
 }
@@ -194,21 +195,21 @@ private fun TeamDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(team.name, color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text(team.name, color = AppColors.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = AppColors.textPrimary)
                     }
                 },
                 actions = {
                     IconButton(onClick = { showShareDialog = true }) {
-                        Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White)
+                        Icon(Icons.Default.Share, contentDescription = "Share", tint = AppColors.textPrimary)
                     }
                     IconButton(onClick = { showLeaveDialog = true }) {
-                        Icon(Icons.Default.Logout, contentDescription = "Leave", tint = Color(0xFFE53935))
+                        Icon(Icons.Default.Logout, contentDescription = "Leave", tint = AppColors.danger)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1A1A1A))
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.bg)
             )
         }
     ) { padding ->
@@ -221,17 +222,17 @@ private fun TeamDetailScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF141414))
+                    colors = CardDefaults.cardColors(containerColor = AppColors.cardBgAlt)
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Key, contentDescription = null, tint = Color(0xFFB8F56A), modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Key, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Código de invitación", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
-                            Text(team.invite_code, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Código de invitación", fontSize = 12.sp, color = AppColors.textSecondary)
+                            Text(team.invite_code, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
                         }
                     }
                 }
@@ -239,7 +240,7 @@ private fun TeamDetailScreen(
 
             // Members
             item {
-                Text("Miembros (${team.members.size})", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("Miembros (${team.members.size})", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
             }
             items(team.members) { member ->
                 Row(
@@ -247,21 +248,21 @@ private fun TeamDetailScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
-                        modifier = Modifier.size(36.dp).clip(CircleShape).background(Color(0xFF5C6BC0).copy(alpha = 0.15f)),
+                        modifier = Modifier.size(36.dp).clip(CircleShape).background(AppColors.accentMuted),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             (member.user?.username ?: "?").take(1).uppercase(),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF7986CB)
+                            color = AppColors.accent
                         )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(member.user?.username ?: "Usuario", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                        Text(member.user?.username ?: "Usuario", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AppColors.textPrimary)
                         if (member.role == "ADMIN") {
-                            Text("Admin", fontSize = 11.sp, color = Color(0xFFB8F56A))
+                            Text("Admin", fontSize = 11.sp, color = AppColors.accent)
                         }
                     }
                 }
@@ -270,7 +271,7 @@ private fun TeamDetailScreen(
             // Shared routines
             if (team.shared_routines.isNotEmpty()) {
                 item {
-                    Text("Rutinas compartidas (${team.shared_routines.size})", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(top = 8.dp))
+                    Text("Rutinas compartidas (${team.shared_routines.size})", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary, modifier = Modifier.padding(top = 8.dp))
                 }
                 items(team.shared_routines) { shared ->
                     SharedRoutineCard(
@@ -282,7 +283,7 @@ private fun TeamDetailScreen(
 
             // Feed
             item {
-                Text("Actividad del equipo", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(top = 8.dp))
+                Text("Actividad del equipo", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary, modifier = Modifier.padding(top = 8.dp))
             }
             item {
                 OutlinedTextField(
@@ -297,16 +298,16 @@ private fun TeamDetailScreen(
                                 viewModel.createPost(team.id, postText)
                                 postText = ""
                             }) {
-                                Icon(Icons.Default.Send, contentDescription = "Send", tint = Color.White)
+                                Icon(Icons.Default.Send, contentDescription = "Send", tint = AppColors.accent)
                             }
                         }
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        cursorColor = Color.White,
-                        focusedBorderColor = Color.White,
-                        unfocusedBorderColor = Color.White.copy(alpha = 0.3f)
+                        focusedTextColor = AppColors.textPrimary,
+                        unfocusedTextColor = AppColors.textPrimary,
+                        cursorColor = AppColors.accent,
+                        focusedBorderColor = AppColors.accent,
+                        unfocusedBorderColor = AppColors.border
                     )
                 )
             }
@@ -332,17 +333,17 @@ private fun TeamDetailScreen(
     if (showLeaveDialog) {
         AlertDialog(
             onDismissRequest = { showLeaveDialog = false },
-            containerColor = Color(0xFF1F1F1F),
-            title = { Text("Salir del equipo", color = Color.White) },
-            text = { Text("¿Seguro que quieres salir de \"${team.name}\"?", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp) },
+            containerColor = AppColors.cardBg,
+            title = { Text("Salir del equipo", color = AppColors.textPrimary) },
+            text = { Text("¿Seguro que quieres salir de \"${team.name}\"?", color = AppColors.textSecondary, fontSize = 14.sp) },
             confirmButton = {
                 Button(
                     onClick = { showLeaveDialog = false; viewModel.leaveTeam(team.id) },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935))
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.danger, contentColor = Color.White)
                 ) { Text("Salir") }
             },
             dismissButton = {
-                TextButton(onClick = { showLeaveDialog = false }) { Text("Cancelar", color = Color.White.copy(alpha = 0.7f)) }
+                TextButton(onClick = { showLeaveDialog = false }) { Text("Cancelar", color = AppColors.textSecondary) }
             }
         )
     }
@@ -356,32 +357,32 @@ private fun SharedRoutineCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF282828))
+        colors = CardDefaults.cardColors(containerColor = AppColors.cardBgAlt)
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF5C6BC0).copy(alpha = 0.15f)),
+                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(AppColors.accentMuted),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = Color(0xFF7986CB), modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(20.dp))
             }
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(shared.routine?.name ?: "Rutina", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(shared.routine?.name ?: "Rutina", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AppColors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     "Compartido por ${shared.user?.username ?: "?"} · ${shared.routine?.exercises?.size ?: 0} ej",
                     fontSize = 11.sp,
-                    color = Color.White.copy(alpha = 0.5f)
+                    color = AppColors.textTertiary
                 )
             }
             OutlinedButton(
                 onClick = onCopy,
                 shape = RoundedCornerShape(10.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF66BB6A))
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.success)
             ) {
                 Text("Copiar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
@@ -394,30 +395,30 @@ private fun TeamPostCard(post: com.talos.forge.data.models.TeamPost) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF141414))
+        colors = CardDefaults.cardColors(containerColor = AppColors.cardBgAlt)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier.size(28.dp).clip(CircleShape).background(Color(0xFFA0F03C).copy(alpha = 0.15f)),
+                    modifier = Modifier.size(28.dp).clip(CircleShape).background(AppColors.accentMuted),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         (post.user?.username ?: "?").take(1).uppercase(),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFB8F56A)
+                        color = AppColors.accent
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(post.user?.username ?: "Usuario", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(post.user?.username ?: "Usuario", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
                 if (post.post_type == "ROUTINE") {
                     Spacer(modifier = Modifier.width(6.dp))
-                    Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = Color(0xFF7986CB), modifier = Modifier.size(12.dp))
+                    Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(12.dp))
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text(post.content, fontSize = 13.sp, color = Color.White.copy(alpha = 0.85f))
+            Text(post.content, fontSize = 13.sp, color = AppColors.textSecondary)
         }
     }
 }
@@ -430,8 +431,8 @@ private fun CreateTeamDialog(
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF282828),
-        title = { Text("Crear equipo", color = Color.White) },
+        containerColor = AppColors.cardBg,
+        title = { Text("Crear equipo", color = AppColors.textPrimary) },
         text = {
             OutlinedTextField(
                 value = name,
@@ -439,21 +440,21 @@ private fun CreateTeamDialog(
                 label = { Text("Nombre del equipo") },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = Color.White,
-                    focusedBorderColor = Color.White,
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f)
+                    focusedTextColor = AppColors.textPrimary,
+                    unfocusedTextColor = AppColors.textPrimary,
+                    cursorColor = AppColors.accent,
+                    focusedBorderColor = AppColors.accent,
+                    unfocusedBorderColor = AppColors.border
                 )
             )
         },
         confirmButton = {
             TextButton(onClick = { if (name.isNotBlank()) onCreate(name) }) {
-                Text("Crear", color = Color.White)
+                Text("Crear", color = AppColors.accent)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancelar", color = Color.White.copy(alpha = 0.7f)) }
+            TextButton(onClick = onDismiss) { Text("Cancelar", color = AppColors.textSecondary) }
         }
     )
 }
@@ -466,8 +467,8 @@ private fun JoinTeamDialog(
     var code by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF282828),
-        title = { Text("Unirse a equipo", color = Color.White) },
+        containerColor = AppColors.cardBg,
+        title = { Text("Unirse a equipo", color = AppColors.textPrimary) },
         text = {
             OutlinedTextField(
                 value = code,
@@ -475,21 +476,21 @@ private fun JoinTeamDialog(
                 label = { Text("Código (GYM-XXXXXX)") },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = Color.White,
-                    focusedBorderColor = Color.White,
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f)
+                    focusedTextColor = AppColors.textPrimary,
+                    unfocusedTextColor = AppColors.textPrimary,
+                    cursorColor = AppColors.accent,
+                    focusedBorderColor = AppColors.accent,
+                    unfocusedBorderColor = AppColors.border
                 )
             )
         },
         confirmButton = {
             TextButton(onClick = { if (code.isNotBlank()) onJoin(code) }) {
-                Text("Unirse", color = Color.White)
+                Text("Unirse", color = AppColors.accent)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancelar", color = Color.White.copy(alpha = 0.7f)) }
+            TextButton(onClick = onDismiss) { Text("Cancelar", color = AppColors.textSecondary) }
         }
     )
 }
@@ -502,11 +503,11 @@ private fun ShareRoutineDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF282828),
-        title = { Text("Compartir rutina", color = Color.White) },
+        containerColor = AppColors.cardBg,
+        title = { Text("Compartir rutina", color = AppColors.textPrimary) },
         text = {
             if (routines.isEmpty()) {
-                Text("No tienes rutinas para compartir", fontSize = 13.sp, color = Color.White.copy(alpha = 0.6f))
+                Text("No tienes rutinas para compartir", fontSize = 13.sp, color = AppColors.textSecondary)
             } else {
                 Column {
                     routines.forEach { routine ->
@@ -517,17 +518,17 @@ private fun ShareRoutineDialog(
                                 .padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = Color(0xFF7986CB), modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(10.dp))
-                            Text(routine.name, fontSize = 14.sp, color = Color.White, modifier = Modifier.weight(1f))
-                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.White.copy(alpha = 0.4f))
+                            Text(routine.name, fontSize = 14.sp, color = AppColors.textPrimary, modifier = Modifier.weight(1f))
+                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = AppColors.textTertiary)
                         }
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Cerrar", color = Color.White.copy(alpha = 0.7f)) }
+            TextButton(onClick = onDismiss) { Text("Cerrar", color = AppColors.textSecondary) }
         }
     )
 }

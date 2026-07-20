@@ -235,9 +235,12 @@ interface ApiService {
     @DELETE("teams/{id}/leave")
     suspend fun leaveTeam(@Path("id") teamId: String): MessageResponse
 
-    // ===== Progress Photos =====
+    // ===== Progress Photos / Body Logs =====
     @GET("progress")
     suspend fun getProgressPhotos(): ProgressPhotosResponse
+
+    @GET("progress/stats")
+    suspend fun getTrackingStats(): TrackingStatsResponse
 
     @POST("progress")
     suspend fun uploadProgressPhoto(@Body request: UploadProgressPhotoRequest): ProgressPhotoResponse
@@ -247,6 +250,16 @@ interface ApiService {
 
     @PUT("progress/{id}")
     suspend fun updateProgressPhoto(@Path("id") id: String, @Body request: UpdateProgressPhotoRequest): ProgressPhotoResponse
+
+    // ===== Workout Logs =====
+    @GET("progress/workouts")
+    suspend fun getWorkoutLogs(): WorkoutLogsResponse
+
+    @POST("progress/workouts")
+    suspend fun createWorkoutLog(@Body request: WorkoutLogRequest): WorkoutLogResponse
+
+    @DELETE("progress/workouts/{id}")
+    suspend fun deleteWorkoutLog(@Path("id") id: String): MessageResponse
 }
 
 data class ShoppingListResponse(val list: ShoppingList?)

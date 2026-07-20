@@ -6,6 +6,7 @@ import android.net.Uri
 import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -66,6 +67,8 @@ fun NutritionScreen(viewModel: NutritionViewModel) {
     var mealType by remember { mutableStateOf("SNACK") }
     var selectedMealType by remember { mutableStateOf("SNACK") }
     val context = LocalContext.current
+    var showPhotoSourceDialog by remember { mutableStateOf(false) }
+    var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.loadMeals()
@@ -94,6 +97,34 @@ fun NutritionScreen(viewModel: NutritionViewModel) {
                 viewModel.analyzeFoodPhoto("data:image/jpeg;base64,$base64")
             } catch (_: Exception) {}
         }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success: Boolean ->
+        if (success && cameraImageUri != null) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(cameraImageUri!!)
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                inputStream?.close()
+                val scaledBitmap = Bitmap.createScaledBitmap(bitmap, 512, 512, true)
+                val outputStream = ByteArrayOutputStream()
+                scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
+                val base64 = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
+                viewModel.analyzeFoodPhoto("data:image/jpeg;base64,$base64")
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun launchCamera() {
+        val photoFile = java.io.File(context.cacheDir, "photos/food_${System.currentTimeMillis()}.jpg")
+        photoFile.parentFile?.mkdirs()
+        cameraImageUri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            photoFile
+        )
+        cameraImageUri?.let { cameraLauncher.launch(it) }
     }
 
     val tabs = listOf("Hoy" to Icons.Default.Restaurant, "IA Cámara" to Icons.Default.PhotoCamera, "Agregar" to Icons.Default.Add)
@@ -133,7 +164,7 @@ fun NutritionScreen(viewModel: NutritionViewModel) {
             )
             1 -> AICameraTab(
                 isAnalyzing = isAnalyzing,
-                onPickPhoto = { photoPickerLauncher.launch("image/*") }
+                onPickPhoto = { showPhotoSourceDialog = true }
             )
             2 -> ManualAddTab(
                 mealName = mealName, onMealNameChange = { mealName = it },
@@ -159,6 +190,52 @@ fun NutritionScreen(viewModel: NutritionViewModel) {
                 onShowAIPlan = { showAIPlan = true }
             )
         }
+    }
+
+    // Photo source selection dialog
+    if (showPhotoSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showPhotoSourceDialog = false },
+            containerColor = AppColors.cardBg,
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.PhotoCamera, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text("Análisis con IA", color = AppColors.textPrimary, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column {
+                    TextButton(
+                        onClick = {
+                            showPhotoSourceDialog = false
+                            launchCamera()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(22.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("Tomar foto", color = AppColors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                    }
+                    TextButton(
+                        onClick = {
+                            showPhotoSourceDialog = false
+                            photoPickerLauncher.launch("image/*")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(22.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("Elegir de galería", color = AppColors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showPhotoSourceDialog = false }) {
+                    Text("Cancelar", color = AppColors.textSecondary)
+                }
+            }
+        )
     }
 
     // AI Food Analysis result
@@ -224,9 +301,9 @@ private fun TodayTab(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Resumen de hoy", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Resumen de hoy", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
                         TextButton(onClick = onToggleWeekly) {
-                            Text("Semana", fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
+                            Text("Semana", fontSize = 12.sp, color = AppColors.accent)
                         }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
@@ -313,10 +390,10 @@ private fun TodayTab(
                             Spacer(modifier = Modifier.width(10.dp))
                         } ?: run {
                             Box(
-                                modifier = Modifier.size(36.dp).clip(CircleShape).background(Color(0xFFFF7043).copy(alpha = 0.15f)),
+                                modifier = Modifier.size(36.dp).clip(CircleShape).background(AppColors.accentMuted),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.LocalDining, contentDescription = null, tint = Color(0xFFFF7043), modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.LocalDining, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(18.dp))
                             }
                             Spacer(modifier = Modifier.width(10.dp))
                         }
@@ -450,7 +527,7 @@ private fun ManualAddTab(
                     label = { Text(label, fontSize = 12.sp) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = AppColors.accent,
-                        selectedLabelColor = Color.White
+                        selectedLabelColor = AppColors.textOnAccent
                     )
                 )
             }
@@ -499,7 +576,7 @@ private fun ManualAddTab(
             onClick = onAdd,
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = AppColors.accent, contentColor = Color.White)
+            colors = ButtonDefaults.buttonColors(containerColor = AppColors.accent, contentColor = AppColors.textOnAccent)
         ) {
             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
@@ -527,14 +604,14 @@ private fun ManualAddTab(
 private fun MacroPill(value: String, label: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            modifier = Modifier.size(36.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.15f)),
+            modifier = Modifier.size(36.dp).clip(CircleShape).background(AppColors.accentMuted),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+            Icon(icon, contentDescription = null, tint = AppColors.accent, modifier = Modifier.size(18.dp))
         }
         Spacer(modifier = Modifier.height(4.dp))
-        Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-        Text(label, fontSize = 10.sp, color = Color.White.copy(alpha = 0.8f))
+        Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
+        Text(label, fontSize = 10.sp, color = AppColors.textSecondary)
     }
 }
 
@@ -635,7 +712,7 @@ private fun FoodAnalysisDialog(
                                 label = { Text(label, fontSize = 11.sp) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = AppColors.accent,
-                                    selectedLabelColor = Color.White
+                                    selectedLabelColor = AppColors.textOnAccent
                                 )
                             )
                         }

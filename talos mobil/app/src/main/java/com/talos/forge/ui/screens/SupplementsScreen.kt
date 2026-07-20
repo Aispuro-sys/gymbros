@@ -87,8 +87,8 @@ fun SupplementsScreen(viewModel: SupplementsViewModel) {
                 // Add supplement button
                 FloatingActionButton(
                     onClick = { showAddDialog = true },
-                    containerColor = Color.White,
-                    contentColor = Color(0xFF141414)
+                    containerColor = AppColors.cardBgAlt,
+                    contentColor = AppColors.textPrimary
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Add")
                 }
@@ -108,7 +108,8 @@ fun SupplementsScreen(viewModel: SupplementsViewModel) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF282828)),
+                        colors = CardDefaults.cardColors(containerColor = AppColors.cardBg),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.border),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Row(
@@ -118,28 +119,28 @@ fun SupplementsScreen(viewModel: SupplementsViewModel) {
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
-                                    modifier = Modifier.size(36.dp).clip(CircleShape).background(Color(0xFF66BB6A).copy(alpha = 0.15f)),
+                                    modifier = Modifier.size(36.dp).clip(CircleShape).background(AppColors.accentMuted),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         if (supp.is_medication) Icons.Default.Medication else Icons.Default.Eco,
                                         contentDescription = null,
-                                        tint = Color(0xFF66BB6A),
+                                        tint = AppColors.accent,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
-                                    Text(supp.name, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                                    Text(supp.name, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = AppColors.textPrimary)
                                     Text(
                                         "${supp.dosage} · ${supp.time_of_day}${if (supp.is_medication) " · Medicamento" else ""}",
                                         fontSize = 11.sp,
-                                        color = Color.White.copy(alpha = 0.7f)
+                                        color = AppColors.textSecondary
                                     )
                                 }
                             }
                             IconButton(onClick = { viewModel.deleteSupplement(supp.id) }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFE53935).copy(alpha = 0.9f))
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = AppColors.danger)
                             }
                         }
                     }
@@ -152,13 +153,13 @@ fun SupplementsScreen(viewModel: SupplementsViewModel) {
     if (isAnalyzing) {
         AlertDialog(
             onDismissRequest = {},
-            containerColor = Color(0xFF282828),
-            title = { Text("Analizando suplemento...", color = Color.White) },
+            containerColor = AppColors.cardBg,
+            title = { Text("Analizando suplemento...", color = AppColors.textPrimary) },
             text = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = AppColors.accent)
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("La IA está leyendo la etiqueta...", fontSize = 13.sp, color = Color.White.copy(alpha = 0.7f))
+                    Text("La IA está leyendo la etiqueta...", fontSize = 13.sp, color = AppColors.textSecondary)
                 }
             },
             confirmButton = {},
@@ -170,7 +171,7 @@ fun SupplementsScreen(viewModel: SupplementsViewModel) {
     analysisResult?.let { result ->
         AlertDialog(
             onDismissRequest = { viewModel.clearAnalysisResult() },
-            containerColor = Color(0xFF282828),
+            containerColor = AppColors.cardBg,
             modifier = Modifier.fillMaxWidth(0.95f),
             title = {
                 Row(
@@ -178,33 +179,33 @@ fun SupplementsScreen(viewModel: SupplementsViewModel) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Análisis IA", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Análisis IA", color = AppColors.textPrimary, fontWeight = FontWeight.Bold)
                     IconButton(onClick = { viewModel.clearAnalysisResult() }) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White.copy(alpha = 0.5f))
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = AppColors.textSecondary)
                     }
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(result.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    result.brand?.let { Text("Marca: $it", fontSize = 13.sp, color = Color.White.copy(alpha = 0.7f)) }
+                    Text(result.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AppColors.textPrimary)
+                    result.brand?.let { Text("Marca: $it", fontSize = 13.sp, color = AppColors.textSecondary) }
                     result.category?.let {
                         Box(
                             modifier = Modifier.clip(RoundedCornerShape(6.dp))
                                 .background(AppColors.accentMuted)
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
-                            Text(it, fontSize = 11.sp, color = AppColors.accentLight)
+                            Text(it, fontSize = 11.sp, color = AppColors.accent)
                         }
                     }
-                    result.serving_size?.let { Text("Porción: $it", fontSize = 13.sp, color = Color.White.copy(alpha = 0.8f)) }
-                    result.dose_per_serving?.let { Text("Dosis: $it", fontSize = 13.sp, color = Color.White.copy(alpha = 0.8f)) }
+                    result.serving_size?.let { Text("Porción: $it", fontSize = 13.sp, color = AppColors.textSecondary) }
+                    result.dose_per_serving?.let { Text("Dosis: $it", fontSize = 13.sp, color = AppColors.textSecondary) }
 
                     if (result.key_ingredients.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("Ingredientes clave:", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                        Text("Ingredientes clave:", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = AppColors.textPrimary)
                         result.key_ingredients.forEach { ing ->
-                            Text("• $ing", fontSize = 12.sp, color = Color.White.copy(alpha = 0.7f))
+                            Text("• $ing", fontSize = 12.sp, color = AppColors.textSecondary)
                         }
                     }
 
@@ -220,14 +221,14 @@ fun SupplementsScreen(viewModel: SupplementsViewModel) {
 
                     result.usage_instructions?.let {
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("Uso: $it", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                        Text("Uso: $it", fontSize = 12.sp, color = AppColors.textSecondary)
                     }
                     result.warnings?.let {
-                        Text("⚠️ $it", fontSize = 12.sp, color = Color(0xFFFFB74D))
+                        Text("⚠️ $it", fontSize = 12.sp, color = AppColors.warning)
                     }
                     result.notes?.let {
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(it, fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f))
+                        Text(it, fontSize = 11.sp, color = AppColors.textTertiary)
                     }
                 }
             },
@@ -244,47 +245,59 @@ fun SupplementsScreen(viewModel: SupplementsViewModel) {
                     }) { Text("Agregar a mis suplementos", color = AppColors.accent) }
                 }
             },
-            dismissButton = { TextButton(onClick = { viewModel.clearAnalysisResult() }) { Text("Cerrar", color = Color.White.copy(alpha = 0.7f)) } }
+            dismissButton = { TextButton(onClick = { viewModel.clearAnalysisResult() }) { Text("Cerrar", color = AppColors.textSecondary) } }
         )
     }
 
     if (showAddDialog) {
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
-            containerColor = Color(0xFF282828),
-            title = { Text("Nuevo Suplemento", color = Color.White) },
+            containerColor = AppColors.cardBg,
+            title = { Text("Nuevo Suplemento", color = AppColors.textPrimary) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = name, onValueChange = { name = it },
                         label = { Text("Nombre") }, singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            cursorColor = Color.White,
-                            focusedBorderColor = Color.White,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f)
+                            focusedTextColor = AppColors.textPrimary,
+                            unfocusedTextColor = AppColors.textPrimary,
+                            cursorColor = AppColors.accent,
+                            focusedBorderColor = AppColors.accent,
+                            unfocusedBorderColor = AppColors.border
                         )
                     )
                     OutlinedTextField(
                         value = dosage, onValueChange = { dosage = it },
                         label = { Text("Dosis") }, singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            cursorColor = Color.White,
-                            focusedBorderColor = Color.White,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f)
+                            focusedTextColor = AppColors.textPrimary,
+                            unfocusedTextColor = AppColors.textPrimary,
+                            cursorColor = AppColors.accent,
+                            focusedBorderColor = AppColors.accent,
+                            unfocusedBorderColor = AppColors.border
                         )
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("MORNING" to "Mañana", "AFTERNOON" to "Tarde", "EVENING" to "Noche").forEach { (v, l) ->
-                            FilterChip(selected = timeOfDay == v, onClick = { timeOfDay = v }, label = { Text(l) })
+                            FilterChip(
+                                selected = timeOfDay == v,
+                                onClick = { timeOfDay = v },
+                                label = { Text(l) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = AppColors.accent,
+                                    selectedLabelColor = AppColors.textOnAccent
+                                )
+                            )
                         }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = isMedication, onCheckedChange = { isMedication = it })
-                        Text("Es medicamento", color = Color.White)
+                        Checkbox(
+                            checked = isMedication,
+                            onCheckedChange = { isMedication = it },
+                            colors = CheckboxDefaults.colors(checkedColor = AppColors.accent, checkmarkColor = AppColors.textOnAccent)
+                        )
+                        Text("Es medicamento", color = AppColors.textPrimary)
                     }
                 }
             },
@@ -295,9 +308,9 @@ fun SupplementsScreen(viewModel: SupplementsViewModel) {
                         name = ""; dosage = ""; isMedication = false
                         showAddDialog = false
                     }
-                }) { Text("Agregar", color = Color.White) }
+                }) { Text("Agregar", color = AppColors.accent) }
             },
-            dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("Cancelar", color = Color.White.copy(alpha = 0.7f)) } }
+            dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("Cancelar", color = AppColors.textSecondary) } }
         )
     }
 }
@@ -306,9 +319,9 @@ fun SupplementsScreen(viewModel: SupplementsViewModel) {
 private fun MacroPill(text: String) {
     Box(
         modifier = Modifier.clip(RoundedCornerShape(8.dp))
-            .background(Color.White.copy(alpha = 0.1f))
+            .background(AppColors.cardBgAlt)
             .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
-        Text(text, fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
+        Text(text, fontSize = 11.sp, color = AppColors.textSecondary)
     }
 }

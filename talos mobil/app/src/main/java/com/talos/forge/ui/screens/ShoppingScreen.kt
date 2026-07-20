@@ -51,7 +51,7 @@ fun ShoppingScreen(viewModel: ShoppingViewModel) {
                     icon = { Icon(Icons.Default.Share, contentDescription = "Share") },
                     text = { Text("Compartir") },
                     containerColor = AppColors.accent,
-                    contentColor = Color.White
+                    contentColor = AppColors.textOnAccent
                 )
             }
         }
@@ -121,7 +121,7 @@ fun ShoppingScreen(viewModel: ShoppingViewModel) {
                         },
                         modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(AppColors.accent)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Add", tint = Color.White, modifier = Modifier.size(24.dp))
+                        Icon(Icons.Default.Add, contentDescription = "Add", tint = AppColors.textOnAccent, modifier = Modifier.size(24.dp))
                     }
                 }
             }
@@ -166,15 +166,15 @@ fun ShoppingScreen(viewModel: ShoppingViewModel) {
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(shoppingList!!.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text("$checkedCount/$totalCount", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+                            Text(shoppingList!!.name, color = AppColors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("$checkedCount/$totalCount", color = AppColors.textSecondary, fontSize = 13.sp)
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         LinearProgressIndicator(
                             progress = progress / 100f,
                             modifier = Modifier.fillMaxWidth().height(6.dp),
-                            color = Color.White,
-                            trackColor = Color.White.copy(alpha = 0.2f)
+                            color = AppColors.accent,
+                            trackColor = AppColors.cardBgAlt
                         )
                     }
                 }
@@ -230,7 +230,7 @@ fun ShoppingScreen(viewModel: ShoppingViewModel) {
                                 colors = CheckboxDefaults.colors(
                                     checkedColor = AppColors.accent,
                                     uncheckedColor = AppColors.textSecondary,
-                                    checkmarkColor = Color.White
+                                    checkmarkColor = AppColors.textOnAccent
                                 )
                             )
                             Column(modifier = Modifier.weight(1f)) {

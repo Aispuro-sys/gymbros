@@ -13,7 +13,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     data object Shopping : Screen("shopping", "Compras", Icons.Default.ShoppingCart)
     data object Community : Screen("community", "Comunidad", Icons.Default.Forum)
     data object Teams : Screen("teams", "Equipos", Icons.Default.Groups)
-    data object Progress : Screen("progress", "Progreso", Icons.Default.CameraAlt)
+    data object Progress : Screen("progress", "Seguimiento", Icons.Default.TrendingUp)
     data object Profile : Screen("profile", "Perfil", Icons.Default.Person)
 }
 

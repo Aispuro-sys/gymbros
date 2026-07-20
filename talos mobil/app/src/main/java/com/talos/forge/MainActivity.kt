@@ -7,9 +7,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,6 +31,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
+import com.talos.forge.data.AppSettings
 import com.talos.forge.ui.AuthViewModel
 import com.talos.forge.ui.CommunityViewModel
 import com.talos.forge.ui.DashboardViewModel
@@ -50,8 +54,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        AppSettings.init(applicationContext)
         setContent {
-            TalosTheme(darkTheme = androidx.compose.foundation.isSystemInDarkTheme()) {
+            TalosTheme(darkTheme = AppSettings.isDarkMode.value) {
                 MainContent()
             }
         }
@@ -99,125 +104,127 @@ fun MainApp(factory: ViewModelFactory, onLogout: () -> Unit, currentUser: com.ta
     val currentScreen = bottomNavItems.find { it.route == currentRoute } ?: bottomNavItems.first()
 
     val drawerWidth = 280.dp
-    val drawerGradient = listOf(AppColors.cardBg, AppColors.cardBgAlt)
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet(
                 modifier = Modifier.width(drawerWidth),
-                drawerShape = RoundedCornerShape(0.dp, 20.dp, 20.dp, 0.dp),
-                drawerContainerColor = Color.Transparent
+                drawerShape = RoundedCornerShape(0.dp, 24.dp, 24.dp, 0.dp),
+                drawerContainerColor = AppColors.bg2
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .background(Brush.verticalGradient(drawerGradient))
-                ) {
-                    // Header compacto con foto de perfil
-                    Row(
+                Column(modifier = Modifier.fillMaxHeight()) {
+                    // Header con foto de perfil y gradiente de acento
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Foto de perfil
-                        if (currentUser?.profile_photo != null) {
-                            AsyncImage(
-                                model = currentUser.profile_photo,
-                                contentDescription = "Foto de perfil",
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(AppColors.accent.copy(alpha = 0.16f), Color.Transparent)
+                                )
                             )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(CircleShape)
-                                    .background(AppColors.accentMuted),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.Person,
-                                    contentDescription = "Sin foto",
-                                    tint = AppColors.accent,
-                                    modifier = Modifier.size(26.dp)
+                            .padding(20.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (currentUser?.profile_photo != null) {
+                                AsyncImage(
+                                    model = currentUser.profile_photo,
+                                    contentDescription = "Foto de perfil",
+                                    modifier = Modifier
+                                        .size(52.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(52.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            Brush.linearGradient(
+                                                listOf(AppColors.accentLight, AppColors.accentDark)
+                                            )
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        (currentUser?.username?.take(1) ?: "U").uppercase(),
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = AppColors.textOnAccent
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    currentUser?.username ?: "Usuario",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppColors.textPrimary
+                                )
+                                Text(
+                                    currentUser?.email ?: "",
+                                    fontSize = 11.sp,
+                                    color = AppColors.textSecondary,
+                                    maxLines = 1
                                 )
                             }
                         }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                currentUser?.username ?: "Usuario",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AppColors.textPrimary
-                            )
-                            Text(
-                                currentUser?.email ?: "",
-                                fontSize = 11.sp,
-                                color = AppColors.textSecondary,
-                                maxLines = 1
-                            )
-                        }
                     }
 
-                    // Separador
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 20.dp),
-                        thickness = 0.5.dp,
-                        color = AppColors.divider
-                    )
+                    HorizontalDivider(thickness = 1.dp, color = AppColors.divider)
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Items compactos
-                    bottomNavItems.forEach { screen ->
-                        val isSelected = currentRoute == screen.route
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 2.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSelected) AppColors.accentMuted else Color.Transparent)
-                                .clickable {
-                                    scope.launch { drawerState.close() }
-                                    if (currentRoute != screen.route) {
-                                        navController.navigate(screen.route) {
-                                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                            launchSingleTop = true
-                                            restoreState = true
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        bottomNavItems.forEach { screen ->
+                            val isSelected = currentRoute == screen.route
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 2.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isSelected) AppColors.accentMuted else Color.Transparent)
+                                    .clickable {
+                                        scope.launch { drawerState.close() }
+                                        if (currentRoute != screen.route) {
+                                            navController.navigate(screen.route) {
+                                                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
                                         }
                                     }
-                                }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                screen.icon,
-                                contentDescription = screen.title,
-                                tint = if (isSelected) AppColors.accent else AppColors.textSecondary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                screen.title,
-                                fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) AppColors.accent else AppColors.textSecondary
-                            )
+                                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    screen.icon,
+                                    contentDescription = screen.title,
+                                    tint = if (isSelected) AppColors.accent else AppColors.textSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Text(
+                                    screen.title,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) AppColors.accent else AppColors.textSecondary
+                                )
+                            }
                         }
                     }
-
-                    Spacer(modifier = Modifier.weight(1f))
 
                     // Botón cerrar sesión
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 20.dp),
-                        thickness = 0.5.dp,
+                        thickness = 1.dp,
                         color = AppColors.divider
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -225,21 +232,22 @@ fun MainApp(factory: ViewModelFactory, onLogout: () -> Unit, currentUser: com.ta
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp)
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(RoundedCornerShape(12.dp))
                             .clickable { onLogout() }
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Default.Logout,
+                            Icons.AutoMirrored.Filled.Logout,
                             contentDescription = "Cerrar sesión",
                             tint = AppColors.danger,
                             modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(14.dp))
                         Text(
                             "Cerrar Sesión",
                             fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = AppColors.danger
                         )
                     }
@@ -255,15 +263,16 @@ fun MainApp(factory: ViewModelFactory, onLogout: () -> Unit, currentUser: com.ta
                     title = {
                         Text(
                             currentScreen.title,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 20.sp,
+                            color = AppColors.textPrimary
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = {
                             scope.launch { drawerState.open() }
                         }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                            Icon(Icons.Default.Menu, contentDescription = "Menu", tint = AppColors.textPrimary)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(

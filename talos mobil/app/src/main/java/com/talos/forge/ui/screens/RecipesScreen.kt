@@ -269,9 +269,9 @@ private fun RecipeDetailDialog(
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AppColors.accent)
             ) {
-                Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = AppColors.textOnAccent, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Agregar a lista de super", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("Agregar a lista de super", color = AppColors.textOnAccent, fontWeight = FontWeight.Bold)
             }
         }
     }
